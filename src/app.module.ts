@@ -9,6 +9,9 @@ import { ProductModule } from './api/products/product.module';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './api/auth/guards/auth-guard';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { CategoryModule } from './api/category/category.module';
+import { SupplierModule } from './api/supplier/supplier.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -30,6 +33,13 @@ import { AuthGuard } from './api/auth/guards/auth-guard';
     AuthModule,
     // ProductModule,
     ProductModule,
+    //cloudinary module
+    CloudinaryModule,
+    //CategoryModule,
+    CategoryModule,
+    //supplierModule
+    SupplierModule
+
 
   ],
   controllers: [AppController],

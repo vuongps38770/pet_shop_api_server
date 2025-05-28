@@ -8,9 +8,11 @@ import { JwtModule, JwtService } from "@nestjs/jwt";
 import { RefreshToken, RefreshTokenSchema } from "./models/refresh-token.entity";
 import { RefreshTokenService } from "./refresh-token.service";
 
+
 @Module({
     controllers: [AuthController],
-    providers: [AuthService,
+    providers: [
+        AuthService,
         {
             provide: 'JWT_ACCESS',
             useFactory: () => new JwtService({ secret: process.env.ACCESS_SECRET, signOptions: { expiresIn: '15m' } }),

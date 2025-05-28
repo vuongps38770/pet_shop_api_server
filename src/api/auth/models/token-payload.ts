@@ -10,4 +10,10 @@ export class TokenPayload {
         this.sub = sub;
         this.role = role;
     }
+    toJSON() {
+    return {
+      sub: this.sub,
+      role: this.role,
+    };
+  }
 } 

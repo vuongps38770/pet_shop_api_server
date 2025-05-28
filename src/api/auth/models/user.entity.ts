@@ -24,7 +24,8 @@ export class User {
     updatedAt: Date;
     @Prop({enum:UserRole, default:UserRole.USER})
     role: UserRole;
-
+    @Prop({type:SchemaTypes.String,default:"https://res.cloudinary.com/dzuqdrb1e/image/upload/v1739074405/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector_yfnz21.jpg"})
+    avatar: string;
 
 }
 export const UserSchema = SchemaFactory.createForClass(User);

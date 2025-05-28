@@ -53,7 +53,7 @@ export class AuthService {
     @returns: Promise<User> - Trả về người dùng mới đã được tạo
     */
     async signUpTest(data: UserCreateData): Promise<User> {
-        if (!data.name || !data.surName || !data.password || !data.phone ) {
+        if (!data.name || !data.surName || !data.password || !data.phone) {
             throw new Error('Missing required fields: surName, name, phone, or password');
         }
         const existingUser = await this.findByPhone(data.phone);
@@ -72,7 +72,7 @@ export class AuthService {
     @param: phone: string - Số điện thoại của người dùng
     @returns: Promise<string> - Trả về mã OTP đã được tạo
     */
-    
+
     async sendPhoneOtpToPhone(phone: string): Promise<boolean> {
         const otp_api_key = process.env.OTP_API_KEY;
         const otp_api_url = process.env.OTP_API_URL;
@@ -88,13 +88,13 @@ export class AuthService {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body:JSON.stringify({
-                    ApiKey:otp_api_key,
-                    Content:otp+ " la ma xac minh dang ky Baotrixemay cua ban",
+                body: JSON.stringify({
+                    ApiKey: otp_api_key,
+                    Content: otp + " la ma xac minh dang ky Baotrixemay cua ban",
                     Phone: phone,
                     SecretKey: otp_api_secret,
                     Brandname: 'Baotrixemay',
-                    SmsType:"2"
+                    SmsType: "2"
                 })
             }
         )
@@ -103,9 +103,9 @@ export class AuthService {
         }
         const data = await response.json();
         console.log('OTP API response:', data);
-        if (data.CodeResult ===`100`) {
+        if (data.CodeResult === `100`) {
             // Lưu OTP vào cơ sở dữ liệu
-            const isSaved=await this.savePhoneOtp(phone, otp);
+            const isSaved = await this.savePhoneOtp(phone, otp);
             return isSaved;
         } else {
             Logger.error('Failed to send OTP:', data);
@@ -128,7 +128,7 @@ export class AuthService {
     }
     // tao ma otp ngau nhien
     private async createRandomPhoneOtp(): Promise<string> {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); 
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         return otp;
     }
 
@@ -166,11 +166,10 @@ export class AuthService {
     }
 
     async loginWithPhoneorEmail(
-        phoneOrEmail: string, 
+        phoneOrEmail: string,
         password: string,
-        userAgent:string
-    ): Promise<{accessToken: string, refreshToken: string}> 
-    {
+        userAgent: string
+    ): Promise<{ accessToken: string, refreshToken: string }> {
         const user = await this.findByPhone(phoneOrEmail) || await this.findByEmail(phoneOrEmail);
         if (!user) {
             throw new Error('User not found');
@@ -180,22 +179,99 @@ export class AuthService {
             throw new Error('Invalid password');
         }
         // Tạo token mới
-        const payload = new TokenPayload(user._id,user.role)
+        const payload = new TokenPayload(user._id, user.role)
         const plainPayload = { ...payload };
         const accessToken = this.jwtAccessService.sign(plainPayload);
         const refreshToken = this.jwtRefreshService.sign(plainPayload);
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        await this.refreshTokenService.createOrUpdateToken(user._id, refreshToken, expiresAt,userAgent);
+        await this.refreshTokenService.createOrUpdateToken(user._id, refreshToken, expiresAt, userAgent);
 
         // Cập nhật lastLogin
         user.lastLogin = new Date();
         await this.userModel.updateOne({ _id: user._id }, { lastLogin: user.lastLogin }).exec();
-        return {accessToken, refreshToken};
+        return { accessToken, refreshToken };
     }
-    
+
     async logoutAll(userId: string): Promise<void> {
         await this.refreshTokenService.deleteAllTokensByUserId(userId);
     }
 
+    async refreshToken(
+        refreshToken: string,
+        userAgent: string
+    ): Promise<{ accessToken: string, newRefreshToken: string }> {
+        const payload = this.jwtRefreshService.verify(refreshToken) as TokenPayload;
+        if (!payload) {
+            throw new Error('Invalid refresh token');
+        }
+        const isValid = await this.refreshTokenService.validateToken(payload.sub, userAgent,refreshToken);
+        if (!isValid) {
+            throw new Error('Invalid or expired refresh token');
+        }
+        const newPayload = new TokenPayload(payload.sub, payload.role);
+        const accessToken = this.jwtAccessService.sign(newPayload.toJSON());
+        const newRefreshToken = this.jwtRefreshService.sign(newPayload.toJSON());
+        console.log("new",newRefreshToken);
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
+        return { accessToken,newRefreshToken};
+    }
+
+    /* google Oauth login
+    usage: production
+    @param: accessToken: string - Mã truy cập từ Google
+    @returns: Promise<{accessToken: string, refreshToken: string}> - Trả về access token và refresh token
+    */
+    // async loginWithGoogle(accessCode: string): Promise<{accessToken: string, refreshToken: string}> {
+    //     const googleUser = await this.verifyGoogleAccessToken(accessCode);
+    //     if (!googleUser) {
+    //         throw new Error('Invalid Google access token');
+    //     }
+    //     let newUser = await this.findByEmail(googleUser.email);
+    //     if (!newUser) {
+    //          newUser = new this.userModel({
+    //             email: googleUser.email,
+    //             name: googleUser.name,
+    //             surName: googleUser.family_name,
+    //             phone: googleUser.phone || '',
+    //             password: bcrypt.hashSync(googleUser.id, 10), 
+    //             avatar: googleUser.picture || 'https://res.cloudinary.com/dzuqdrb1e/image/upload/v1739074405/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector_yfnz21.jpg',
+    //         });
+    //         await newUser.save();
+    //     }
+    //     const payload = new TokenPayload(user._id,user.role);
+    //     const accessToken = this.jwtAccessService.sign(payload);
+    //     const refreshToken = this.jwtRefreshService.sign(payload);
+    //     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    //     await this.refreshTokenService.createOrUpdateToken(user._id, refreshToken, expiresAt,'google-oauth');
+    //     return {accessToken, refreshToken};
+    // }
+
+    // async exchangeCodeForTokens(
+    //     code: string,
+    //     userAgent: string,
+    // ): Promise<{ accessToken: string, refreshToken: string }> {
+
+    //     const state = this.generateRandomState();
+    //     const codeVerifier = this.generateCodeVerifier();
+    //     const codeChallenge = this.generateCodeChallenge(codeVerifier);
+
+    //     // Lưu state -> codeVerifier vào Redis hoặc Map
+    //     this.redis.set(`pkce:${state}`, codeVerifier, 'EX', 300); // TTL 5 phút
+
+    //     const redirectUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    //         `client_id=${this.clientId}` +
+    //         `&redirect_uri=${this.redirectUri}` +
+    //         `&response_type=code` +
+    //         `&scope=openid%20profile%20email` +
+    //         `&state=${state}` +
+    //         `&code_challenge=${codeChallenge}` +
+    //         `&code_challenge_method=S256`;
+
+    //     // 🔁 Đây tương đương với response.sendRedirect(...) của Spring Boot
+    //     return res.redirect(redirectUrl);
+
+
+    // }
 
 }

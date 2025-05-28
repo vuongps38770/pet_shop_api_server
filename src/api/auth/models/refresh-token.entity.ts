@@ -4,7 +4,6 @@ import { UserRole } from "./role.enum";
 
 @Schema()
 export class RefreshToken {
-    _id: string;
     @Prop({ required: true })
     userId: string;
     @Prop({ required: true })

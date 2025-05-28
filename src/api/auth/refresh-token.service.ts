@@ -4,21 +4,18 @@ import * as bcrypt from 'bcryptjs';
 import { InjectModel } from "@nestjs/mongoose";
 import { UserRole } from "./models/role.enum";
 import { log } from "console";
+import {sha256} from "js-sha256"
 export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,
     ) { }
 
     async createOrUpdateToken(userId: string, token: string, expiresAt: Date,userAgent:string): Promise<RefreshToken> {
-        const hashedToken = await bcrypt.hash(token, 10);
-        log(`Creating or updating refresh token for userId: ${userId}, expiresAt: ${expiresAt}, userAgent: ${userAgent}`);
-        const existingToken = await this.refreshTokenRepository.findOne({ userId, userAgent });
-        if (existingToken) {
-            existingToken.hashedToken = hashedToken;
-            existingToken.expiresAt = expiresAt;
-            return existingToken.save();
-        }
-
+        const hashedToken = sha256(token)
+        log("newhash",hashedToken)
+        // Xóa token cũ trước khi tạo mới
+        await this.refreshTokenRepository.deleteMany({ userId, userAgent });
+        
         const newToken = new this.refreshTokenRepository({
             userId,
             hashedToken,
@@ -27,26 +24,36 @@ export class RefreshTokenService {
             expiresAt,
             userAgent:userAgent
         });
-        log(`newTokendocument: ${JSON.stringify(newToken)}`);
-        
+        console.log('Creating new token:', newToken);
         return newToken.save();
     }
 
 
-    async validateToken(userId: string, token: string): Promise<boolean> {
+    async validateToken(userId: string, userAgent:string,
+        /*rerfresh token tu client gui len*/token: string): Promise<boolean> {
         const refreshToken = await this.refreshTokenRepository.findOne({
             userId,
+            userAgent: userAgent
         });
+        console.log('Token từ client:', token);
+        console.log('Token trong database:', refreshToken?.hashedToken);
+        
         if (!refreshToken) {
+            console.log("debug -- refreshToken not found", userAgent + " " + userId);
             return false;
         }
-        const isValid = await bcrypt.compare(token, refreshToken.hashedToken);
+        const isValid = sha256(token)===refreshToken.hashedToken
+        log("debugg compare",token+" hashed: "+refreshToken.hashedToken)
+        console.log('Kết quả so sánh token:', isValid);
+        
         if (!isValid) {
+            console.log("debug -- refreshToken not valid after compare");
             return false;
         }
         const isExpired = refreshToken.expiresAt < new Date();
         if (isExpired) {
-            await this.refreshTokenRepository.deleteOne({ userId });
+            log("debug -- refreshToken isExpired")
+            await this.refreshTokenRepository.deleteOne({ userId,userAgent });
             return false;
         }
         // Cập nhật thời gian cập nhật
