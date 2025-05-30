@@ -9,3 +9,8 @@ export class CategoryRequestCreateDto {
 
 
 }
+
+export class CategoryRequestEditDto {
+    id:string
+    name: string;
+}

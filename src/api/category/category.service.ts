@@ -1,8 +1,8 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { ConflictException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Category } from "./entity/category.entity";
 import { Model } from "mongoose";
-import { CategoryRequestCreateDto } from "./dto/category.dto";
+import { CategoryRequestCreateDto, CategoryRequestEditDto } from "./dto/category.dto";
 import { CategoryType } from "./models/category-.enum";
 
 @Injectable()
@@ -20,23 +20,45 @@ export class CategoryService implements OnModuleInit {
         console.log('Indexes synced!');
     }
     async addCategory(data: CategoryRequestCreateDto): Promise<Category> {
-        const newCategory = await this.categoryModel.create({
-            categoryType: data.categoryType || null,
-            name: data.name,
-            parentId: data.parentId || null,
-            isRoot:data.isRoot
-        },);
-        if (data.parentId) {
-            await this.categoryModel.findByIdAndUpdate(
-                data.parentId,
-                {
-                    $push: { children: newCategory._id }
+        try {
+            const newCategory = await this.categoryModel.create({
+                categoryType: data.categoryType || null,
+                name: data.name,
+                parentId: data.parentId || null,
+                isRoot: data.isRoot
+            },);
+            if (data.parentId) {
+                await this.categoryModel.findByIdAndUpdate(
+                    data.parentId,
+                    {
+                        $push: { children: newCategory._id }
+                    },
+                    { new: true, runValidators: true }
+                )
+            }
+            return newCategory
+        } catch (error) {
+            if (error.code === 11000) {
+                // Lấy thông tin field trùng từ error.keyValue
+                const duplicateField = Object.keys(error.keyValue)[0];
+                const duplicateValue = error.keyValue[duplicateField];
 
-                },
-                { new: true,runValidators:true }
-            )
+                throw new ConflictException({
+                    success: false,
+                    code: 409,
+                    message: 'Duplicate category name for the same parent or type',
+                    errors: [
+                        {
+                            field: duplicateField,
+                            value: duplicateValue,
+                            issue: 'This category name already exists with the same parent or categoryType.',
+                        },
+                    ],
+                });
+            }
+            throw error;
         }
-        return newCategory
+
 
     }
 
@@ -49,11 +71,11 @@ export class CategoryService implements OnModuleInit {
     async getAllCategories(): Promise<Category[]> {
         return this.categoryModel.find().exec();
     }
-    async updateCategory(id: string, data: CategoryRequestCreateDto): Promise<Category> {
+    async updateCategory(data: CategoryRequestEditDto): Promise<Category> {
         if (!data) {
             throw new Error("Data is missing!")
         }
-        const cate = await this.categoryModel.findByIdAndUpdate(id, {
+        const cate = await this.categoryModel.findByIdAndUpdate(data.id, {
             name: data.name,
             updatedAt: new Date(),
 

@@ -2,6 +2,7 @@
 import { CreateProductDescriptionDto } from "./description-request.dto"
 
 export class CreateProductDto {
+    isActivate:boolean
     categories: string[]
     suppliers_id: string
     descriptions: CreateProductDescriptionDto[]
