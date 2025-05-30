@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Res } from "@nestjs/common";
 import { Response } from 'express';
 import { InjectModel } from "@nestjs/mongoose";
-import { User } from "./models/user.entity";
+import { User } from "./entity/user.entity";
 import { Document, Model } from "mongoose";
 import { UserCreateData } from "./dto/auth.dto.userCreateData";
 import * as bcrypt from 'bcryptjs';

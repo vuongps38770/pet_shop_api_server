@@ -2,11 +2,12 @@ import { Module } from "@nestjs/common";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { MongooseModule } from "@nestjs/mongoose";
-import { User, UserSchema } from "./models/user.entity";
+import { User, UserSchema } from "./entity/user.entity";
 import { OtpSchema } from "./models/otp.enity";
-import { JwtModule, JwtService } from "@nestjs/jwt";
-import { RefreshToken, RefreshTokenSchema } from "./models/refresh-token.entity";
+
 import { RefreshTokenService } from "./refresh-token.service";
+import { JwtService } from "@nestjs/jwt";
+import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity";
 
 
 @Module({

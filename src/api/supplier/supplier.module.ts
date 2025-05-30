@@ -4,6 +4,7 @@ import { SupplierService } from "./supplier.service";
 import { MongooseModule } from "@nestjs/mongoose";
 import { SupplierSchema } from "./entity/supplier.entity";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
+import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
 
 @Module({
     imports: [
@@ -13,10 +14,10 @@ import { CloudinaryService } from "src/cloudinary/cloudinary.service";
                 schema: SupplierSchema
             }
         ]),
-        
+        CloudinaryModule
     ],
     controllers: [SupplierController],
-    providers: [SupplierService, CloudinaryService],
+    providers: [SupplierService],
     exports: [SupplierService],
 })
 export class SupplierModule { }

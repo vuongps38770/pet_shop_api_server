@@ -12,6 +12,10 @@ import { AuthGuard } from './api/auth/guards/auth-guard';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { CategoryModule } from './api/category/category.module';
 import { SupplierModule } from './api/supplier/supplier.module';
+import { VariantUnitModule } from './api/variant-units/variant-unit.module';
+import { VariantGroupModule } from './api/variant-group/variant-group.module';
+import { ProductVariantModule } from './api/product-variant/product-variant.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -38,7 +42,14 @@ import { SupplierModule } from './api/supplier/supplier.module';
     //CategoryModule,
     CategoryModule,
     //supplierModule
-    SupplierModule
+    SupplierModule,
+    //groupVariant
+    VariantGroupModule,
+    //variantUnit
+    VariantUnitModule,
+    //productVariant
+    ProductVariantModule,
+
 
 
   ],
@@ -57,7 +68,6 @@ export class AppModule implements OnModuleInit {
 
   async onModuleInit() {
     const state = this.connection.readyState;
-    this.logger.log('onModuleInit gọi rồi');
     this.logger.log(`MongoDB readyState: ${this.connection.readyState}`);
 
     this.connection.on('connected', () => {

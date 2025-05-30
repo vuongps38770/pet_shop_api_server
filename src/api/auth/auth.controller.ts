@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Injectable, Post, Req, Res, Unauthorized
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { UserCreateData } from "./dto/auth.dto.userCreateData";
-import { RequireAuth } from "src/decorators/auth-require-decorator";
+import { RequireAuth } from "src/decorators/auth-require.decorator";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 
 @Controller('auth')

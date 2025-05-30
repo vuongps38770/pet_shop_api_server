@@ -1,10 +1,8 @@
 import { Model } from "mongoose";
-import { RefreshToken } from "./models/refresh-token.entity";
-import * as bcrypt from 'bcryptjs';
 import { InjectModel } from "@nestjs/mongoose";
-import { UserRole } from "./models/role.enum";
 import { log } from "console";
 import {sha256} from "js-sha256"
+import { RefreshToken } from "./entity/refresh-token.entity";
 export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,

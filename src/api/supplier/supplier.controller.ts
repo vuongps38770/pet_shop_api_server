@@ -1,12 +1,12 @@
 import { Body, Controller, Get, HttpCode, Injectable, Post, Query, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
-import { Roles } from "src/decorators/roles-decorator";
+import { Roles } from "src/decorators/roles.decorator";
 import { UserRole } from "../auth/models/role.enum";
 import { In, Raw } from "typeorm";
 import { SupplierService } from "./supplier.service";
 import { SupplierDto } from "./dto/supplier.dto";
 import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/type/standard-api-respond-format";
 import { Supplier } from "./entity/supplier.entity";
-import { RawResponse } from "src/decorators/raw-decorator";
+import { RawResponse } from "src/decorators/raw.decorator";
 import { FileInterceptor } from "@nestjs/platform-express";
 
 @Controller('supplier')

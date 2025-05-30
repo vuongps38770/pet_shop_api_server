@@ -12,6 +12,7 @@ async function bootstrap() {
   app.useGlobalGuards(new RoleGuard(reflector, jwtService));
   app.useGlobalInterceptors(new TransformInterceptor(reflector))
   app.useGlobalFilters(new AllExceptionsInterceptor())
+  app.enableCors()
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

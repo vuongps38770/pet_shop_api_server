@@ -1,12 +1,13 @@
-import { Body, Controller, Get, HttpCode, Injectable, Post, Query, Res } from "@nestjs/common";
-import { Roles } from "src/decorators/roles-decorator";
+import { Body, Controller, Get, HttpCode, Injectable, Param, Post, Query, Res } from "@nestjs/common";
+import { Roles } from "src/decorators/roles.decorator";
 import { UserRole } from "../auth/models/role.enum";
 import { In, Raw } from "typeorm";
 import { CategoryService } from "./category.service";
-import { CategoryDto } from "./dto/category.dto";
+import { CategoryRequestCreateDto } from "./dto/category.dto";
 import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/type/standard-api-respond-format";
 import { Category } from "./entity/category.entity";
-import { RawResponse } from "src/decorators/raw-decorator";
+import { RawResponse } from "src/decorators/raw.decorator";
+import { CategoryType } from "./models/category-.enum";
 
 @Controller('category')
 export class CategoryController {
@@ -23,8 +24,7 @@ export class CategoryController {
 
     @Post('create')
     @HttpCode(201)
-    @Roles(UserRole.ADMIN)
-    async createCategory(@Body() data:CategoryDto  ): Promise<PartialStandardResponse<null>> {
+    async createCategory(@Body() data:CategoryRequestCreateDto  ): Promise<PartialStandardResponse<null>> {
         await this.categoryService.addCategory(data);
         return {
             message:"Created category!",
@@ -38,9 +38,9 @@ export class CategoryController {
             data
         }
     }
-    @Post('update')
+    @Post('update/:id')
     @Roles(UserRole.ADMIN)
-    async updateCategory(@Query('id') id:string,@Body() dataUpdate:CategoryDto):Promise<PartialStandardResponse<Category>>{
+    async updateCategory(@Param('id') id:string,@Body() dataUpdate:CategoryRequestCreateDto):Promise<PartialStandardResponse<Category>>{
         const dataRes  = await this.categoryService.updateCategory(id,dataUpdate)
         return{
             data:dataRes,
@@ -48,4 +48,12 @@ export class CategoryController {
         }
     }
 
+    @Get('get-categories')
+    async getCategoryByType(@Query('type') type:CategoryType):Promise<PartialStandardResponse<Category[]>>{
+        const dataRes= await this.categoryService.getCategoriesByType(type)
+        return{
+            data:dataRes,
+            message:"Succesfully"
+        }
+    }
 }

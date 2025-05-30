@@ -1,11 +1,11 @@
-export class CategoryDto {
+import { CategoryType } from "../models/category-.enum";
+
+export class CategoryRequestCreateDto {
 
     name: string;
-    description?: string;
-    constructor(name: string, description?: string) {
-        this.name = name;
-        this.description = description;
-    }
+    parentId?: string
+    categoryType?: CategoryType
+    isRoot: boolean;
 
 
 }

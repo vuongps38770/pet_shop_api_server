@@ -3,7 +3,7 @@ import { map, Observable } from "rxjs";
 import { PartialStandardResponse, StandardApiRespondSuccess } from "../type/standard-api-respond-format";
 import { Response } from 'express';
 import { Reflector } from "@nestjs/core";
-import { RAW_RESPONSE_KEY } from "src/decorators/raw-decorator";
+import { RAW_RESPONSE_KEY } from "src/decorators/raw.decorator";
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<PartialStandardResponse<T>, StandardApiRespondSuccess<T>> {
     constructor(
