@@ -3,48 +3,57 @@ import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { UserCreateData } from "./dto/auth.dto.userCreateData";
 import { RequireAuth } from "src/decorators/auth-require.decorator";
-import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
+import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/type/standard-api-respond-format";
+import { CurrentUserId } from "src/decorators/current-user-id.decorator";
+import { RawResponse } from "src/decorators/raw.decorator";
 
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {
-
     }
+    @RawResponse()
     @Get('site')
     async getSite(): Promise<string> {
         return 'Welcome to the Pet Shop API';
     }
     @Post('signup')
-    async signUp(@Body() data: UserCreateData, @Res({ passthrough: true }) res: Response): Promise<void> {
+    async signUp(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUp(data)
-        res.locals.message = 'User created successfully';
+        return {
+            message:'User created successfully'
+        }
     }
     @Post('signup-test')
-    async signUpTest(@Body() data: UserCreateData, @Res({ passthrough: true }) res: Response): Promise<void> {
+    async signUpTest(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUpTest(data)
-        res.locals.message = 'User created successfully';
+        return {
+            message:'User created successfully'
+        }
+
     }
     @Post('send-phone-otp')
-    async sendPhoneOtp(@Body('phone') phone: string, @Res({ passthrough: true }) res: Response): Promise<void> {
-        if (await this.authService.sendPhoneOtpToPhone(phone)) {
-            res.status(200).json({
-                message: 'OTP sent successfully',
-            })
+    async sendPhoneOtp(@Body('phone') phone: string): Promise<PartialStandardResponse<void>> {
+        await this.authService.sendPhoneOtpToPhone(phone)
+        return {
+            message: "OPT sent"
         }
+
     }
     @Post('login-phone-or-email')
-    async loginWithPhone(@Body('phone') phone: string, @Body('password') password: string, @Body('userAgent') userAgent: string, @Res({ passthrough: true }) res: Response): Promise<void> {
+    async loginWithPhone(
+        @Body('phone') phone: string,
+        @Body('password') password: string,
+        @Body('userAgent') userAgent: string,
+    ): Promise<PartialStandardResponse<{ accessToken: string, refreshToken: string }>> {
         const { accessToken, refreshToken } = await this.authService.loginWithPhoneorEmail(phone, password, userAgent);
-        if (!accessToken || !refreshToken) {
-            res.status(401).json({
-                message: 'Invalid phone or password',
-            });
+        return {
+            code: 200,
+            data: {
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+            },
+            message: 'Login successful'
         }
-        res.status(200).json({
-            message: 'Login successful',
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-        });
     }
 
     @Post("logoout_all")
@@ -72,6 +81,17 @@ export class AuthController {
             }
         }
     }
+    @Post('logout')
+    @RequireAuth()
+    async logOut(@CurrentUserId() userId: string, @Body() userAgent: string): Promise<StandardApiRespondSuccess<void>> {
+        await this.authService.logout(userId, userAgent)
+        return {
+            message: 'logged out',
+            success: true
+        }
+    }
+
+
 
     @Post('oauth/google')
     async googleAuth(@Body('accessToken') accessToken: string, @Body('userAgent') userAgent: string, @Res({ passthrough: true }) res: Response) {

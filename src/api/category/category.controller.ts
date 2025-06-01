@@ -25,11 +25,12 @@ export class CategoryController {
     @Post('create')
     @Roles(UserRole.ADMIN)
     @HttpCode(201)
-    async createCategory(@Body() data:CategoryRequestCreateDto  ): Promise<PartialStandardResponse<null>> {
-        await this.categoryService.addCategory(data);
+    async createCategory(@Body() res:CategoryRequestCreateDto  ): Promise<PartialStandardResponse<Category>> {
+        const data = await this.categoryService.addCategory(res);
         return {
             message:"Created category!",
             code:201,
+            data:data
         }
     }
     @Get('get-all')

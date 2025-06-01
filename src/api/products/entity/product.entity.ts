@@ -8,12 +8,16 @@ import { ProductVariant, ProductVariantSchema } from "src/api/product-variant/en
 
 @Schema()
 export class Product{
+    @Prop({type:[Types.ObjectId], ref:'VariantGroup'})
+    variantGroupIds:Types.ObjectId[]
+
     @Prop({type:Boolean, default:false})
     isActivate:boolean
-    @Prop({type:[Types.ObjectId], ref:'categories'})
+    
+    @Prop({type:[Types.ObjectId], ref:'category'})
     categories_ids:Types.ObjectId[]
-
-    @Prop({type:Types.ObjectId, ref:'suppliers'})
+    
+    @Prop({type:Types.ObjectId, ref:'supplier'})
     suppliers_id:Types.ObjectId
 
     @Prop({type:[ProductDescriptionSchema], default:[]})
@@ -22,8 +26,8 @@ export class Product{
     @Prop({unique:true})
     name:string
 
-    @Prop({type:[Types.ObjectId], default:[]})
-    variantIds:ProductVariant[]
+    @Prop({type:[Types.ObjectId], default:[],ref:"ProductVariant" })
+    variantIds:Types.ObjectId[]
 
     @Prop({default:[]})
     images:string[]

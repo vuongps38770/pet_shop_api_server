@@ -9,6 +9,7 @@ import { Otp } from "./models/otp.enity";
 import { JwtService } from "@nestjs/jwt";
 import { RefreshTokenService } from "./refresh-token.service";
 import { TokenPayload } from "./models/token-payload";
+import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 @Injectable()
 export class AuthService {
     constructor(
@@ -176,7 +177,7 @@ export class AuthService {
         }
         const isPasswordValid = bcrypt.compareSync(password, user.password);
         if (!isPasswordValid) {
-            throw new Error('Invalid password');
+            throw new Error('Invalid email/phone/password');
         }
         // Tạo token mới
         const payload = new TokenPayload(user._id, user.role)
@@ -216,7 +217,9 @@ export class AuthService {
         await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
         return { accessToken,newRefreshToken};
     }
-
+    async logout(userId:string,userAgent:string):Promise<void>{
+        await this.refreshTokenService.logOut(userId,userAgent)
+    }
     /* google Oauth login
     usage: production
     @param: accessToken: string - Mã truy cập từ Google

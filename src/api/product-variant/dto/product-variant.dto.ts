@@ -4,7 +4,6 @@ import { Types } from "mongoose";
 import { VariantUnit } from "src/api/variant-units/entity/variant-unit";
 
 export class CreateVariantDto {
-
     variantUnits_ids: string[];
     @IsNumber()
     stock: number;

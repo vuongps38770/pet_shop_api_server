@@ -17,12 +17,18 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
                 ? exception.getResponse()
                 : exception.message || 'Internal server error';
 
-        const res: StandardApiRespondFailure = {
-            success: false,
-            code: status,
-            errors: Array.isArray(message) ? message: [message],
-        };
-        response.status(status).json(res);
+        if (typeof message === 'object' && message.success === false && message.code) {
+            response.status(status).json(message);
+        } else {
+            const res: StandardApiRespondFailure = {
+                success: false,
+                code: status,
+                errors: Array.isArray(message) ? message : [message],
+            };
+            response.status(status).json(res);
+        }
+
+
     }
 
 }

@@ -6,7 +6,7 @@ import { VariantUnit, VariantUnitSchema } from "src/api/variant-units/entity/var
 export class ProductVariant {
     _id: string
 
-    @Prop({ type: Types.ObjectId, ref: 'products' })
+    @Prop({ type: Types.ObjectId, ref: 'product' })
     product_id: Types.ObjectId
 
     @Prop({ unique: true })
@@ -15,8 +15,6 @@ export class ProductVariant {
     @Prop({ type: [Types.ObjectId], ref: 'VariantUnit' })
     variantUnits_ids: Types.ObjectId[]
 
-    @Prop({ type: [VariantUnitSchema], default: [] })
-    variantUnits: VariantUnit[]
 
     @Prop({ default: 0 })
     stock: number

@@ -1,33 +1,34 @@
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { log } from "console";
-import {sha256} from "js-sha256"
+import { sha256 } from "js-sha256"
 import { RefreshToken } from "./entity/refresh-token.entity";
+import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,
     ) { }
 
-    async createOrUpdateToken(userId: string, token: string, expiresAt: Date,userAgent:string): Promise<RefreshToken> {
+    async createOrUpdateToken(userId: string, token: string, expiresAt: Date, userAgent: string): Promise<RefreshToken> {
         const hashedToken = sha256(token)
-        log("newhash",hashedToken)
+        log("newhash", hashedToken)
         // Xóa token cũ trước khi tạo mới
         await this.refreshTokenRepository.deleteMany({ userId, userAgent });
-        
+
         const newToken = new this.refreshTokenRepository({
             userId,
             hashedToken,
             createdAt: new Date(),
             updatedAt: new Date(),
             expiresAt,
-            userAgent:userAgent
+            userAgent: userAgent
         });
         console.log('Creating new token:', newToken);
         return newToken.save();
     }
 
 
-    async validateToken(userId: string, userAgent:string,
+    async validateToken(userId: string, userAgent: string,
         /*rerfresh token tu client gui len*/token: string): Promise<boolean> {
         const refreshToken = await this.refreshTokenRepository.findOne({
             userId,
@@ -35,15 +36,15 @@ export class RefreshTokenService {
         });
         console.log('Token từ client:', token);
         console.log('Token trong database:', refreshToken?.hashedToken);
-        
+
         if (!refreshToken) {
             console.log("debug -- refreshToken not found", userAgent + " " + userId);
             return false;
         }
-        const isValid = sha256(token)===refreshToken.hashedToken
-        log("debugg compare",token+" hashed: "+refreshToken.hashedToken)
+        const isValid = sha256(token) === refreshToken.hashedToken
+        log("debugg compare", token + " hashed: " + refreshToken.hashedToken)
         console.log('Kết quả so sánh token:', isValid);
-        
+
         if (!isValid) {
             console.log("debug -- refreshToken not valid after compare");
             return false;
@@ -51,7 +52,7 @@ export class RefreshTokenService {
         const isExpired = refreshToken.expiresAt < new Date();
         if (isExpired) {
             log("debug -- refreshToken isExpired")
-            await this.refreshTokenRepository.deleteOne({ userId,userAgent });
+            await this.refreshTokenRepository.deleteOne({ userId, userAgent });
             return false;
         }
         // Cập nhật thời gian cập nhật
@@ -62,4 +63,20 @@ export class RefreshTokenService {
     async deleteAllTokensByUserId(userId: string): Promise<void> {
         await this.refreshTokenRepository.deleteMany({ userId });
     }
+
+
+
+    async logOut(userId: string,userAgent:string): Promise<boolean> {
+        try {
+            await this.refreshTokenRepository.deleteMany({userId,userAgent})
+            return true
+        } catch (error) {
+            throw new Error(error.message||"Lỗi")
+        }
+        
+
+    }
+
+
+
 }

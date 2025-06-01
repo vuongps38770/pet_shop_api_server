@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Product } from "./entity/product.entity";
@@ -7,10 +7,11 @@ import { VariantUnit } from "../variant-units/entity/variant-unit";
 import { VariantGroup } from "../variant-group/entity/variant-group";
 import { VariantGroupService } from "../variant-group/variant-group.service";
 import { VariantUnitService } from "../variant-units/variant-unit.service";
-import { ProductVariant } from "../product-variant/entity/product-variant.entity";
 import { ProductVariantService } from "../product-variant/product-variant.service";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 import { log } from "console";
+import { ProductRespondDto } from "./dto/product-respond.dto";
+import { ProductMapper } from "./mappers/product.mapper";
 
 @Injectable()
 export class ProductService {
@@ -26,7 +27,7 @@ export class ProductService {
 
 
 
-    async createProduct(data: CreateProductDto, imageFiles: Express.Multer.File[]): Promise<Product> {
+    async createProduct(data: CreateProductDto, imageFiles: Express.Multer.File[]): Promise<ProductRespondDto> {
         if (!data) {
             throw new BadRequestException('Dữ liệu sản phẩm không được để trống');
         }
@@ -77,7 +78,7 @@ export class ProductService {
                     throw new Error(`Không tìm thấy unit với key: ${key}`);
                 }
                 unitIds.push(unitId);
-                
+
             }
 
             const savedVariant = await this.variantService.create({
@@ -87,20 +88,19 @@ export class ProductService {
                 importPrice: variant.importPrice,
                 promotionalPrice: variant.promotionalPrice,
                 sellingPrice: variant.sellingPrice
-                
+
             });
-            log(savedVariant)
-            
+
             savedVariantsIds.push(savedVariant._id);
 
         }
-        let imageUrls:string[]=[]
+        let imageUrls: string[] = []
         if (imageFiles) {
             const images = await this.cloudinaryService.uploadMultiple(imageFiles)
             if (!images) {
                 throw new Error(`Lỗi khi upload ảnh`);
             }
-            imageUrls=images
+            imageUrls = images
         }
         log(savedVariantsIds)
         const createdProduct = await this.productModel.create({
@@ -108,14 +108,33 @@ export class ProductService {
             variantIds: savedVariantsIds,
             categories_ids: data.categories,
             descriptions: data.descriptions,
-            images:imageUrls,
+            images: imageUrls,
             suppliers_id: data.suppliers_id,
-            
+
         });
 
-        return createdProduct;
+        return await this.getProductById(createdProduct._id.toString())
 
     }
 
+
+    async getProductById(productId: string): Promise<ProductRespondDto> {
+        const product = await this.productModel.findById(productId)
+            .populate({
+                path: 'variantIds',
+                populate: {
+                    path: 'variantUnits_ids', 
+                    model: 'VariantUnit'
+                }
+            })
+            .populate('categories_ids')
+            .populate('suppliers_id')
+            .exec();
+        if (!product) {
+            throw new NotFoundException(`Không tìm thấy sản phẩm với id: ${productId}`);
+        }
+        console.log(JSON.stringify(product, null, 2));
+        return ProductMapper.toDto(product);
+    }
 
 }
