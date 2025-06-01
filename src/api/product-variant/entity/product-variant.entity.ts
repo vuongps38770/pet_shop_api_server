@@ -3,13 +3,14 @@ import { Types } from "mongoose";
 import { VariantUnit, VariantUnitSchema } from "src/api/variant-units/entity/variant-unit";
 
 @Schema()
+
 export class ProductVariant {
     _id: string
 
     @Prop({ type: Types.ObjectId, ref: 'product' })
     product_id: Types.ObjectId
 
-    @Prop({ unique: true })
+    @Prop({ })
     sku: string
 
     @Prop({ type: [Types.ObjectId], ref: 'VariantUnit' })
@@ -30,3 +31,14 @@ export class ProductVariant {
 }
 
 export const ProductVariantSchema = SchemaFactory.createForClass(ProductVariant)
+
+
+ProductVariantSchema.index(
+  { sku: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: {
+      sku: { $type: 'string' } 
+    }
+  }
+);

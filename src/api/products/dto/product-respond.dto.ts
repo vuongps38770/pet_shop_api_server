@@ -41,3 +41,14 @@ export class ProductDescriptionRespondDto{
 
     index:number
 }
+
+
+export class ProductPaginationRespondDto {
+    data: ProductRespondDto[]; 
+    total: number;             
+    page: number;              
+    limit: number;             
+    totalPages: number;        
+    hasNextPage: boolean;    
+    hasPreviousPage: boolean;  
+}

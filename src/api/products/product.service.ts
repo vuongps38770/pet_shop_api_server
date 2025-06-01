@@ -10,8 +10,9 @@ import { VariantUnitService } from "../variant-units/variant-unit.service";
 import { ProductVariantService } from "../product-variant/product-variant.service";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 import { log } from "console";
-import { ProductRespondDto } from "./dto/product-respond.dto";
+import { ProductPaginationRespondDto, ProductRespondDto } from "./dto/product-respond.dto";
 import { ProductMapper } from "./mappers/product.mapper";
+import { PaginationDto } from "./dto/product-pagination.dto";
 
 @Injectable()
 export class ProductService {
@@ -123,7 +124,7 @@ export class ProductService {
             .populate({
                 path: 'variantIds',
                 populate: {
-                    path: 'variantUnits_ids', 
+                    path: 'variantUnits_ids',
                     model: 'VariantUnit'
                 }
             })
@@ -135,6 +136,46 @@ export class ProductService {
         }
         console.log(JSON.stringify(product, null, 2));
         return ProductMapper.toDto(product);
+    }
+
+
+
+    async findAll(paginationDto: PaginationDto): Promise<void> {
+        const {
+            page = 1,
+            limit = 10,
+            search,
+            sortBy = 'createdAt',
+            order = 'desc',
+        } = paginationDto;
+
+        const skip = (page - 1) * limit;
+
+        const filter = search
+            ? {
+                name: { $regex: search, $options: 'i' }, 
+            }
+            : {};
+
+        const sortOption: any = {};
+        sortOption[sortBy] = order === 'asc' ? 1 : -1;
+
+        const [data, total] = await Promise.all([
+            this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit),
+            this.productModel.countDocuments(filter),
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+    //     return {
+    //         data,
+    //         total,
+    //         page,
+    //         limit,
+    //         totalPages,
+    //         hasNextPage: page < totalPages,
+    //         hasPreviousPage: page > 1,
+    //     };
     }
 
 }

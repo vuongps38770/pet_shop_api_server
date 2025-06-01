@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Res } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit, Res } from "@nestjs/common";
 import { Response } from 'express';
 import { InjectModel } from "@nestjs/mongoose";
 import { User } from "./entity/user.entity";
@@ -11,7 +11,7 @@ import { RefreshTokenService } from "./refresh-token.service";
 import { TokenPayload } from "./models/token-payload";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
     constructor(
         @InjectModel('User') private readonly userModel: Model<User>,
         @InjectModel('Otp') private readonly otpModel: Model<Otp>,
@@ -19,6 +19,17 @@ export class AuthService {
         @Inject('JWT_ACCESS') private readonly jwtAccessService: JwtService,
         @Inject('JWT_REFRESH') private readonly jwtRefreshService: JwtService,
     ) { }
+
+
+
+
+    async onModuleInit() {
+        console.log('Syncing indexes for Category collection...');
+        await this.userModel.syncIndexes();
+        console.log('Indexes synced!');
+    }
+
+
     /*
     signUp thong thuong qua sdt
     usage: production

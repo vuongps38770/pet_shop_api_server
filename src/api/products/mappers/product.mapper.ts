@@ -45,42 +45,46 @@ export class ProductMapper {
     }
 
 
-    private static  formatVariantGroups(product: any) {
-        
-    const groupMap = new Map<string, {
-        _id: string,
-        groupName: string,
-        units: { _id: string, unitName: string }[]
-}>();
+    private static formatVariantGroups(product: any) {
 
-    for (const variant of product.variantIds || []) {
-        for (const unit of variant.variantUnits_ids || []) {
-            const group = unit.variantGroupId;
-            if (!group) continue;
+        const groupMap = new Map<string, {
+            _id: string,
+            groupName: string,
+            units: { _id: string, unitName: string }[]
+        }>();
 
-            const groupId = group._id.toString();
-            const groupName = group.name;
+        for (const variant of product.variantIds || []) {
+            for (const unit of variant.variantUnits_ids || []) {
+                const group = unit.variantGroupId;
+                if (!group) continue;
 
-            if (!groupMap.has(groupId)) {
-                groupMap.set(groupId, {
-                    _id: groupId,
-                    groupName: groupName,
-                    units: []
-                });
-            }
+                const groupId = group._id.toString();
+                const groupName = group.name;
 
-            const groupEntry = groupMap.get(groupId)!;
-            if (!groupEntry.units.some(u => u._id === unit._id.toString())) {
-                groupEntry.units.push({
-                    _id: unit._id.toString(),
-                    unitName: unit.name
-                });
+                if (!groupMap.has(groupId)) {
+                    groupMap.set(groupId, {
+                        _id: groupId,
+                        groupName: groupName,
+                        units: []
+                    });
+                }
+
+                const groupEntry = groupMap.get(groupId)!;
+                if (!groupEntry.units.some(u => u._id === unit._id.toString())) {
+                    groupEntry.units.push({
+                        _id: unit._id.toString(),
+                        unitName: unit.name
+                    });
+                }
             }
         }
+
+        return Array.from(groupMap.values());
     }
 
-    return Array.from(groupMap.values());
-}
+    static mapToSimplize(product:any){
+        
+    }
 
 }
 

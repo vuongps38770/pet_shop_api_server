@@ -6,15 +6,15 @@ export type UserDocument = HydratedDocument<User>;
 @Schema()
 export class User {
     _id: string;
-    @Prop({ })
+    @Prop({})
     password: string;
     @Prop({ required: false })
     surName: string;
     @Prop({ required: true })
     name: string;
-    @Prop({unique:true})
+    @Prop({ })
     phone: string;
-    @Prop({unique:true})
+    @Prop({  })
     email: string;
     @Prop({ type: Date, default: Date.now })
     lastLogin: Date;
@@ -22,12 +22,30 @@ export class User {
     createdAt: Date;
     @Prop({ type: Date, default: Date.now })
     updatedAt: Date;
-    @Prop({enum:UserRole, default:UserRole.USER})
+    @Prop({ enum: UserRole, default: UserRole.USER })
     role: UserRole;
-    @Prop({type:SchemaTypes.String,default:"https://res.cloudinary.com/dzuqdrb1e/image/upload/v1739074405/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector_yfnz21.jpg"})
+    @Prop({ type: SchemaTypes.String, default: "https://res.cloudinary.com/dzuqdrb1e/image/upload/v1739074405/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector_yfnz21.jpg" })
     avatar: string;
 
 }
 export const UserSchema = SchemaFactory.createForClass(User);
 
 
+UserSchema.index(
+    { phone: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            phone: { $type: 'string' }
+        }
+    }
+);
+UserSchema.index(
+    { email: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            email: { $type: 'string' }
+        }
+    }
+);
