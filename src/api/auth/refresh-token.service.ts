@@ -3,7 +3,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { log } from "console";
 import { sha256 } from "js-sha256"
 import { RefreshToken } from "./entity/refresh-token.entity";
-import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import e from "express";
 import { Roles } from "src/decorators/roles.decorator";
 import { UserRole } from "../auth/models/role.enum";
@@ -7,7 +7,8 @@ import { Product } from "./entity/product.entity";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/product-request.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ProductRespondDto } from "./dto/product-respond.dto";
+import { ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
+import { PaginationDto } from "./dto/product-pagination.dto";
 
 @Controller('products')
 export class ProductController {
@@ -36,6 +37,16 @@ export class ProductController {
     @Get("getProduct/:id")
     async getProductById(@Param('id') id:string):Promise<PartialStandardResponse<ProductRespondDto>>{
         const data = await this.productService.getProductById(id)
+        return{
+            code:200,
+            data:data,
+            message:"1235 anh co danh roi nhip lao ko"
+        }
+    }
+
+    @Get("getProducts")
+    async getProducts(@Query() paginationDto:PaginationDto):Promise<PartialStandardResponse<any>>{
+        const data = await this.productService.findAll(paginationDto)
         return{
             code:200,
             data:data,

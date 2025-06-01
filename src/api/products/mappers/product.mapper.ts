@@ -1,7 +1,7 @@
 // src/api/product/mappers/product.mapper.ts
 
 import { CategoryRespondDto } from 'src/api/category/dto/category-respond.dto';
-import { ProductRespondDto, VariantGroupRespondDto, VariantRespondDto, VariantUnitRespondDto, ProductDescriptionRespondDto } from '../dto/product-respond.dto';
+import { ProductRespondDto, VariantGroupRespondDto, VariantRespondDto, VariantUnitRespondDto, ProductDescriptionRespondDto, ProductPaginationRespondDto, ProductRespondSimplizeDto } from '../dto/product-respond.dto';
 
 export class ProductMapper {
     static toDto(product: any): ProductRespondDto {
@@ -11,7 +11,10 @@ export class ProductMapper {
             isActivate: product.isActivate,
             images: product.images || [],
             suppliers_id: product.suppliers_id?._id?.toString() || null,
-
+            maxPromotionalPrice:product.maxPromotionalPrice,
+            maxSellingPrice:product.maxSellingPrice,
+            minPromotionalPrice:product.minPromotionalPrice,
+            minSellingPrice:product.minSellingPrice,
             categories: (product.categories_ids || []).map((cat: any): CategoryRespondDto => ({
                 _id: cat._id.toString(),
                 name: cat.name,
@@ -82,8 +85,17 @@ export class ProductMapper {
         return Array.from(groupMap.values());
     }
 
-    static mapToSimplize(product:any){
-        
+    static mapToSimplize(product:any):ProductRespondSimplizeDto{
+        return{
+            _id:product._id,
+            isActivate:product.isActivate,
+            name:product.name,
+            images:product.images,
+            maxPromotionalPrice:product.maxPromotionalPrice,
+            maxSellingPrice:product.maxSellingPrice,
+            minPromotionalPrice:product.minPromotionalPrice,
+            minSellingPrice:product.minSellingPrice
+        }
     }
 
 }

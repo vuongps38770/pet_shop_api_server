@@ -32,15 +32,10 @@ export class ProductService {
         if (!data) {
             throw new BadRequestException('Dữ liệu sản phẩm không được để trống');
         }
-
-        if (!data.variantGroups || !Array.isArray(data.variantGroups) || data.variantGroups.length === 0) {
-            throw new BadRequestException('Danh sách nhóm biến thể không hợp lệ');
-        }
-
-        if (!data.variants || !Array.isArray(data.variants) || data.variants.length === 0) {
-            throw new BadRequestException('Danh sách biến thể không hợp lệ');
-        }
-
+        let minPromotionalPrice: number = Number.POSITIVE_INFINITY;
+        let maxPromotionalPrice: number = Number.NEGATIVE_INFINITY;
+        let minSellingPrice: number = Number.POSITIVE_INFINITY;
+        let maxSellingPrice: number = Number.NEGATIVE_INFINITY;
 
 
         let createdGroups: VariantGroup[] = [];
@@ -91,6 +86,10 @@ export class ProductService {
                 sellingPrice: variant.sellingPrice
 
             });
+            if (variant.promotionalPrice < minPromotionalPrice) minPromotionalPrice = variant.promotionalPrice;
+            if (variant.promotionalPrice > maxPromotionalPrice) maxPromotionalPrice = variant.promotionalPrice;
+            if (variant.sellingPrice < minSellingPrice) minSellingPrice = variant.sellingPrice;
+            if (variant.sellingPrice > maxSellingPrice) maxSellingPrice = variant.sellingPrice;
 
             savedVariantsIds.push(savedVariant._id);
 
@@ -104,6 +103,8 @@ export class ProductService {
             imageUrls = images
         }
         log(savedVariantsIds)
+
+
         const createdProduct = await this.productModel.create({
             name: data.name,
             variantIds: savedVariantsIds,
@@ -111,7 +112,10 @@ export class ProductService {
             descriptions: data.descriptions,
             images: imageUrls,
             suppliers_id: data.suppliers_id,
-
+            maxPromotionalPrice,
+            maxSellingPrice,
+            minPromotionalPrice,
+            minSellingPrice,
         });
 
         return await this.getProductById(createdProduct._id.toString())
@@ -140,7 +144,7 @@ export class ProductService {
 
 
 
-    async findAll(paginationDto: PaginationDto): Promise<void> {
+    async findAll(paginationDto: PaginationDto): Promise<any> {
         const {
             page = 1,
             limit = 10,
@@ -153,29 +157,31 @@ export class ProductService {
 
         const filter = search
             ? {
-                name: { $regex: search, $options: 'i' }, 
+                name: { $regex: search, $options: 'i' },
             }
             : {};
 
         const sortOption: any = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
 
-        const [data, total] = await Promise.all([
+        let [rawData, total] = await Promise.all([
             this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit),
             this.productModel.countDocuments(filter),
         ]);
-
+        const data = rawData.map(item =>
+            ProductMapper.mapToSimplize(item)
+        )
         const totalPages = Math.ceil(total / limit);
 
-    //     return {
-    //         data,
-    //         total,
-    //         page,
-    //         limit,
-    //         totalPages,
-    //         hasNextPage: page < totalPages,
-    //         hasPreviousPage: page > 1,
-    //     };
+        return {
+            data: data,
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
+        };
     }
 
 }

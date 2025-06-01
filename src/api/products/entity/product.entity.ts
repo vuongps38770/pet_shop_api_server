@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import {Types } from "mongoose";
 import { ProductDescription, ProductDescriptionSchema } from "./description.entity";
-import { ProductVariant, ProductVariantSchema } from "src/api/product-variant/entity/product-variant.entity";
 
 
 
@@ -13,7 +12,7 @@ export class Product{
 
     @Prop({type:Boolean, default:false})
     isActivate:boolean
-    
+
     @Prop({type:[Types.ObjectId], ref:'category'})
     categories_ids:Types.ObjectId[]
     
@@ -34,6 +33,16 @@ export class Product{
 
     @Prop({type:Date, default:Date.now()})
     createdDate:Date
+
+
+    @Prop({})
+    minPromotionalPrice:number
+    @Prop({})
+    maxPromotionalPrice:number
+    @Prop({})
+    minSellingPrice:number
+    @Prop({})
+    maxSellingPrice:number
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product)

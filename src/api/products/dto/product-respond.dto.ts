@@ -11,6 +11,10 @@ export class ProductRespondDto {
     variantGroups: VariantGroupRespondDto[]
     variants: VariantRespondDto[]
     images:string[]
+    minPromotionalPrice:number
+    maxPromotionalPrice:number
+    minSellingPrice:number
+    maxSellingPrice:number
 }
 
 export class VariantGroupRespondDto{
@@ -44,11 +48,22 @@ export class ProductDescriptionRespondDto{
 
 
 export class ProductPaginationRespondDto {
-    data: ProductRespondDto[]; 
+    data: ProductRespondSimplizeDto[]; 
     total: number;             
     page: number;              
     limit: number;             
     totalPages: number;        
     hasNextPage: boolean;    
     hasPreviousPage: boolean;  
+}
+
+export class ProductRespondSimplizeDto {
+    _id:string
+    name: string
+    isActivate: boolean
+    images:string[]
+    minPromotionalPrice:number
+    maxPromotionalPrice:number
+    minSellingPrice:number
+    maxSellingPrice:number
 }
