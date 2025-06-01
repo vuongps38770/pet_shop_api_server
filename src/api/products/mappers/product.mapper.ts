@@ -1,7 +1,7 @@
 // src/api/product/mappers/product.mapper.ts
 
 import { CategoryRespondDto } from 'src/api/category/dto/category-respond.dto';
-import { ProductRespondDto, VariantGroupRespondDto, VariantRespondDto, VariantUnitRespondDto, ProductDescriptionRespondDto, ProductPaginationRespondDto, ProductRespondSimplizeDto } from '../dto/product-respond.dto';
+import { ProductRespondDto, VariantGroupRespondDto, VariantRespondDto, VariantUnitRespondDto, ProductDescriptionRespondDto, ProductPaginationRespondDto, ProductRespondSimplizeDto, ProductAdminRespondSimplizeDto } from '../dto/product-respond.dto';
 
 export class ProductMapper {
     static toDto(product: any): ProductRespondDto {
@@ -95,6 +95,25 @@ export class ProductMapper {
             maxSellingPrice:product.maxSellingPrice,
             minPromotionalPrice:product.minPromotionalPrice,
             minSellingPrice:product.minSellingPrice
+        }
+    }
+
+     static mapToSimplizeAdmin(product:any):ProductAdminRespondSimplizeDto{
+        return{
+            _id:product._id,
+            isActivate:product.isActivate,
+            name:product.name,
+            images:product.images,
+            maxPromotionalPrice:product.maxPromotionalPrice,
+            maxSellingPrice:product.maxSellingPrice,
+            minPromotionalPrice:product.minPromotionalPrice,
+            minSellingPrice:product.minSellingPrice,
+            supplier:product.suppliers_id.name,
+            categories:(product.categories_ids||[]).map((ca:any):CategoryRespondDto=>({
+                _id:ca._id,
+                name:ca.name,
+
+            }))
         }
     }
 

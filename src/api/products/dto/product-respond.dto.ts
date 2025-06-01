@@ -47,8 +47,8 @@ export class ProductDescriptionRespondDto{
 }
 
 
-export class ProductPaginationRespondDto {
-    data: ProductRespondSimplizeDto[]; 
+export class ProductPaginationRespondDto<T> {
+    data: T[]; 
     total: number;             
     page: number;              
     limit: number;             
@@ -66,4 +66,19 @@ export class ProductRespondSimplizeDto {
     maxPromotionalPrice:number
     minSellingPrice:number
     maxSellingPrice:number
+}
+
+
+export class ProductAdminRespondSimplizeDto {
+    _id:string
+    name: string
+    isActivate: boolean
+    images:string[]
+    categories: CategoryRespondDto[]
+    minPromotionalPrice:number
+    maxPromotionalPrice:number
+    minSellingPrice:number
+    maxSellingPrice:number
+    sumStock?:number
+    supplier:any
 }

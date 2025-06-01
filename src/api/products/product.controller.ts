@@ -7,8 +7,9 @@ import { Product } from "./entity/product.entity";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/product-request.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
+import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
 import { PaginationDto } from "./dto/product-pagination.dto";
+import { UpdateProductDto } from "./dto/product-update.dto";
 
 @Controller('products')
 export class ProductController {
@@ -45,12 +46,32 @@ export class ProductController {
     }
 
     @Get("getProducts")
-    async getProducts(@Query() paginationDto:PaginationDto):Promise<PartialStandardResponse<any>>{
+    async getProducts(@Query() paginationDto:PaginationDto):Promise<PartialStandardResponse<ProductPaginationRespondDto<ProductRespondSimplizeDto>>>{
         const data = await this.productService.findAll(paginationDto)
         return{
             code:200,
             data:data,
             message:"1235 anh co danh roi nhip lao ko"
+        }
+    }
+
+    @Get("/admin/getProducts")
+    async getProductsAdmin(@Query() paginationDto:PaginationDto):Promise<PartialStandardResponse<ProductPaginationRespondDto<ProductAdminRespondSimplizeDto>>>{
+        const data = await this.productService.findAllForAdmin(paginationDto)
+        return{
+            code:200,
+            data:data,
+            message:"1235 anh co danh roi nhip lao ko"
+        }
+    }
+
+    @Post("update-basic-info/:id")
+    async updateProductBasicInfo(@Body() data:UpdateProductDto, @Param() id:string):Promise<PartialStandardResponse<ProductRespondDto>>{
+        const resData= await this.productService.editProductBasicInfo(id,data)
+        return{
+            code:200,
+            data:resData,
+            message:"Update success"
         }
     }
 }
