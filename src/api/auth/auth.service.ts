@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit, Res } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable, Logger, OnModuleInit, Res } from "@nestjs/common";
 import { Response } from 'express';
 import { InjectModel } from "@nestjs/mongoose";
 import { User } from "./entity/user.entity";
@@ -10,6 +10,8 @@ import { JwtService } from "@nestjs/jwt";
 import { RefreshTokenService } from "./refresh-token.service";
 import { TokenPayload } from "./models/token-payload";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
+import { AppException } from "src/common/exeptions/app.exeption";
+import { log } from "console";
 @Injectable()
 export class AuthService implements OnModuleInit {
     constructor(
@@ -38,7 +40,7 @@ export class AuthService implements OnModuleInit {
     */
     async signUp(data: UserCreateData): Promise<User> {
         if (!data.name || !data.surName || !data.password || !data.phone || !data.otpCode) {
-            throw new Error('Missing required fields: surName, name, phone, or password');
+            throw new AppException('Missing required fields: surName, name, phone, or password', HttpStatus.BAD_REQUEST);
         }
         // if (!data.password || data.password.length < 6) {
         //     throw new Error('Password must be at least 6 characters long');
@@ -47,17 +49,27 @@ export class AuthService implements OnModuleInit {
             // Kiểm tra OTP trước khi tạo người dùng
             const isOtpValid = await this.checkPhoneOtp(data.phone, data.otpCode);
             if (!isOtpValid) {
-                throw new Error('Invalid OTP');
+                throw new AppException('Invalid OTP', HttpStatus.UNAUTHORIZED);
             }
         }
         const existingUser = await this.findByPhone(data.phone);
         if (existingUser) {
-            throw new Error('User with this phone number already exists');
+            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT);
         }
         data.password = bcrypt.hashSync(data.password, 10);
         const newUser = new this.userModel(data);
         return await newUser.save();
     }
+
+
+
+    async checkIfExistPhone(phone: string) {
+        const existingUser = await this.findByPhone(phone);
+        if (existingUser) {
+            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT);
+        }
+    }
+
     /*
     signUp thong thuong qua sdt
     usage: test (ko can otp)
@@ -66,11 +78,12 @@ export class AuthService implements OnModuleInit {
     */
     async signUpTest(data: UserCreateData): Promise<User> {
         if (!data.name || !data.surName || !data.password || !data.phone) {
-            throw new Error('Missing required fields: surName, name, phone, or password');
+            throw new AppException('Missing required fields: surName, name, phone, or password', HttpStatus.BAD_REQUEST);
+
         }
         const existingUser = await this.findByPhone(data.phone);
         if (existingUser) {
-            throw new Error('User with this phone number already exists');
+            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT);
         }
         data.password = bcrypt.hashSync(data.password, 10);
         const newUser = new this.userModel(data);
@@ -111,6 +124,7 @@ export class AuthService implements OnModuleInit {
             }
         )
         if (!response.ok) {
+            Logger.error(JSON.stringify(response)||"")
             throw new Error('Failed to send OTP - API error');
         }
         const data = await response.json();
@@ -182,13 +196,16 @@ export class AuthService implements OnModuleInit {
         password: string,
         userAgent: string
     ): Promise<{ accessToken: string, refreshToken: string }> {
+        if (!password || !phoneOrEmail || !userAgent) {
+            throw new AppException('email/phone/password is missing!', HttpStatus.BAD_REQUEST);
+        }
         const user = await this.findByPhone(phoneOrEmail) || await this.findByEmail(phoneOrEmail);
         if (!user) {
-            throw new Error('User not found');
+            throw new AppException('Invalid email/phone/password', HttpStatus.UNAUTHORIZED);
         }
         const isPasswordValid = bcrypt.compareSync(password, user.password);
         if (!isPasswordValid) {
-            throw new Error('Invalid email/phone/password');
+            throw new AppException('Invalid email/phone/password', HttpStatus.UNAUTHORIZED);
         }
         // Tạo token mới
         const payload = new TokenPayload(user._id, user.role)
@@ -216,20 +233,20 @@ export class AuthService implements OnModuleInit {
         if (!payload) {
             throw new Error('Invalid refresh token');
         }
-        const isValid = await this.refreshTokenService.validateToken(payload.sub, userAgent,refreshToken);
+        const isValid = await this.refreshTokenService.validateToken(payload.sub, userAgent, refreshToken);
         if (!isValid) {
             throw new Error('Invalid or expired refresh token');
         }
         const newPayload = new TokenPayload(payload.sub, payload.role);
         const accessToken = this.jwtAccessService.sign(newPayload.toJSON());
         const newRefreshToken = this.jwtRefreshService.sign(newPayload.toJSON());
-        console.log("new",newRefreshToken);
+        console.log("new", newRefreshToken);
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
-        return { accessToken,newRefreshToken};
+        return { accessToken, newRefreshToken };
     }
-    async logout(userId:string,userAgent:string):Promise<void>{
-        await this.refreshTokenService.logOut(userId,userAgent)
+    async logout(userId: string, userAgent: string): Promise<void> {
+        await this.refreshTokenService.logOut(userId, userAgent)
     }
     /* google Oauth login
     usage: production

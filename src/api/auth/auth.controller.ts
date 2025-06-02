@@ -6,16 +6,20 @@ import { RequireAuth } from "src/decorators/auth-require.decorator";
 import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/type/standard-api-respond-format";
 import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 import { RawResponse } from "src/decorators/raw.decorator";
+import { Public } from "../../decorators/public.decorator";
 
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {
     }
+    @Public()
     @RawResponse()
     @Get('site')
     async getSite(): Promise<string> {
         return 'Welcome to the Pet Shop API';
     }
+
+    @Public()
     @Post('signup')
     async signUp(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUp(data)
@@ -23,6 +27,8 @@ export class AuthController {
             message:'User created successfully'
         }
     }
+
+    @Public()
     @Post('signup-test')
     async signUpTest(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUpTest(data)
@@ -31,6 +37,16 @@ export class AuthController {
         }
 
     }
+    @Public()
+    @Post('check-phone')
+    async checkPhone(@Body("phone") phone: string): Promise<PartialStandardResponse<void>> {
+        await this.authService.checkIfExistPhone(phone)
+        return {
+            message:'Your phone Number is valid!'
+        }
+    }
+
+    @Public()
     @Post('send-phone-otp')
     async sendPhoneOtp(@Body('phone') phone: string): Promise<PartialStandardResponse<void>> {
         await this.authService.sendPhoneOtpToPhone(phone)
@@ -39,6 +55,9 @@ export class AuthController {
         }
 
     }
+
+
+    @Public()
     @Post('login-phone-or-email')
     async loginWithPhone(
         @Body('phone') phone: string,
@@ -66,7 +85,7 @@ export class AuthController {
     }
 
 
-
+    
     @Post('refresh-token')
     async refreshToken(@Body('refreshToken') refreshToken: string, @Body('userAgent') userAgent: string, @Res({ passthrough: true }) res: Response): Promise<PartialStandardResponse<{ accessToken, refreshToken }>> {
         const { accessToken, newRefreshToken } = await this.authService.refreshToken(refreshToken, userAgent);
@@ -81,6 +100,8 @@ export class AuthController {
             }
         }
     }
+
+    
     @Post('logout')
     @RequireAuth()
     async logOut(@CurrentUserId() userId: string, @Body() userAgent: string): Promise<StandardApiRespondSuccess<void>> {

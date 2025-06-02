@@ -18,8 +18,8 @@ export class PartialStandardResponse<T> {
 
 }
 export class StandardApiRespondFailure implements IStandardApiResponse<undefined> {
-  success: false = false; 
-  message?: string;
-  code?: number;
-  errors: string[]
+  success: false;
+  code: number;
+  errors: string[];
+  path?: string;
 }

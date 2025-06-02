@@ -16,7 +16,7 @@ import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity"
         AuthService,
         {
             provide: 'JWT_ACCESS',
-            useFactory: () => new JwtService({ secret: process.env.ACCESS_SECRET, signOptions: { expiresIn: '15m' } }),
+            useFactory: () => new JwtService({ secret: process.env.ACCESS_SECRET, signOptions: { expiresIn: '7d' } }),
         },
         {
             provide: 'JWT_REFRESH',

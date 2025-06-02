@@ -3,7 +3,7 @@ import e from "express";
 import { Roles } from "src/decorators/roles.decorator";
 import { UserRole } from "../auth/models/role.enum";
 
-@Controller('products')
+@Controller('variant-unit')
 export class ProductController {
     constructor() {
     }

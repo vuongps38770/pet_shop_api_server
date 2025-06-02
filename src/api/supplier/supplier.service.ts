@@ -12,7 +12,6 @@ export class SupplierService {
         @InjectModel('supplier') private readonly supplierModel: Model<Supplier>,
         private readonly cloudinaryService: CloudinaryService,
     ) {
-
     }
     async addSupplier(supplier: SupplierDto, image: Express.Multer.File): Promise<Supplier> {
         if (!supplier.name) {

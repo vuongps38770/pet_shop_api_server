@@ -28,6 +28,10 @@ export class ProductVariant {
 
     @Prop({ default: 0 })
     promotionalPrice: number
+
+
+    @Prop({type:Types.ObjectId, ref:"Product"})
+    productId:Types.ObjectId
 }
 
 export const ProductVariantSchema = SchemaFactory.createForClass(ProductVariant)

@@ -4,15 +4,17 @@ import { JwtService } from '@nestjs/jwt';
 import { RoleGuard } from './api/auth/guards/role.guard';
 import { TransformInterceptor } from './common/interceptors/transform-interceptor';
 import { AllExceptionsInterceptor } from './common/interceptors/exception-interceptor';
+import { AuthGuard } from './api/auth/guards/auth-guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
   const jwtService = app.get(JwtService);
   app.useGlobalGuards(new RoleGuard(reflector, jwtService));
-  app.useGlobalInterceptors(new TransformInterceptor(reflector))
-  app.useGlobalFilters(new AllExceptionsInterceptor())
-  app.enableCors()
+  app.useGlobalGuards(new AuthGuard(reflector, jwtService));
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  app.useGlobalFilters(new AllExceptionsInterceptor());
+  app.enableCors();
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

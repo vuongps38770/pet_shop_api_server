@@ -7,6 +7,7 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
     catch(exception: any, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse();
+        const request = ctx.getRequest();
 
         const status =
             exception instanceof HttpException
@@ -17,17 +18,31 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
                 ? exception.getResponse()
                 : exception.message || 'Internal server error';
 
-        if (typeof message === 'object' && message.success === false && message.code) {
-            response.status(status).json(message);
-        } else {
-            const res: StandardApiRespondFailure = {
-                success: false,
-                code: status,
-                errors: Array.isArray(message) ? message : [message],
-            };
-            response.status(status).json(res);
-        }
+        const errorList =
+            typeof message === 'object' && 'errors' in message
+                ? message.errors
+                : Array.isArray(message)
+                    ? message
+                    : [message];
 
+        const res: StandardApiRespondFailure = {
+            success: false,
+            code: status,
+            errors: errorList,
+            path: request.url,
+        };
+        if (status >= 500) {
+            console.error('[INTERNAL ERROR]', {
+                url: request.url,
+                method: request.method,
+                exception,
+                stack: exception?.stack,
+            });
+
+        } else {
+            res.errors = errorList;
+        }
+        response.status(status).json(res);
 
     }
 

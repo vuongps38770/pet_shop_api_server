@@ -5,3 +5,12 @@ export class UpdateProductDto {
     suppliers_id?: string
     images?: string[]
 }
+
+export class UpdateProductPriceDto {
+    variants:UpdateProductVariantPriceDto[]
+}
+export class UpdateProductVariantPriceDto {
+    variantId:string
+    promotionalPrice: number
+    sellingPrice: number
+}

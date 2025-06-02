@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
+import { Connection, Model, Types } from "mongoose";
 import { Product } from "./entity/product.entity";
 import { CreateProductDto, VariantGroupRequestDto } from "./dto/product-request.dto";
 import { VariantUnit } from "../variant-units/entity/variant-unit";
@@ -13,7 +13,8 @@ import { log } from "console";
 import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
 import { ProductMapper } from "./mappers/product.mapper";
 import { PaginationDto } from "./dto/product-pagination.dto";
-import { UpdateProductDto } from "./dto/product-update.dto";
+import {  UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
+import { CreateProductDescriptionDto } from "./dto/description-request.dto";
 
 @Injectable()
 export class ProductService {
@@ -22,7 +23,8 @@ export class ProductService {
         private readonly variantGroupService: VariantGroupService,
         private readonly variantUnitService: VariantUnitService,
         private readonly variantService: ProductVariantService,
-        private readonly cloudinaryService: CloudinaryService
+        private readonly cloudinaryService: CloudinaryService,
+        @InjectConnection() private readonly connection: Connection,
 
     ) { }
 
@@ -30,96 +32,115 @@ export class ProductService {
 
 
     async createProduct(data: CreateProductDto, imageFiles: Express.Multer.File[]): Promise<ProductRespondDto> {
-        if (!data) {
-            throw new BadRequestException('Dữ liệu sản phẩm không được để trống');
-        }
-        let minPromotionalPrice: number = Number.POSITIVE_INFINITY;
-        let maxPromotionalPrice: number = Number.NEGATIVE_INFINITY;
-        let minSellingPrice: number = Number.POSITIVE_INFINITY;
-        let maxSellingPrice: number = Number.NEGATIVE_INFINITY;
+        const session = await this.connection.startSession();
+        session.startTransaction();
 
-
-        let createdGroups: VariantGroup[] = [];
-        let variantGroups = data.variantGroups;
-        const unitMap: Map<string, string> = new Map();
-
-        //save groups like size/corlor/flavor/...etc
-        for (let i = 0; i < variantGroups.length; i++) {
-            let group = variantGroups[i]
-            const savedGroup = await this.variantGroupService.create({
-                name: variantGroups[i].groupName
-            })
-            createdGroups.push(savedGroup)
-
-
-            for (let unit of group.units) {
-                const savedUnit = await this.variantUnitService.create({
-                    name: unit.unitName,
-                }, savedGroup._id)
-                unitMap.set(`${savedGroup.name}-${unit.unitName}`, savedUnit._id);
-
+        try {
+            if (!data) {
+                throw new BadRequestException('Dữ liệu sản phẩm không được để trống');
             }
-        }
+            let minPromotionalPrice: number = Number.POSITIVE_INFINITY;
+            let maxPromotionalPrice: number = Number.NEGATIVE_INFINITY;
+            let minSellingPrice: number = Number.POSITIVE_INFINITY;
+            let maxSellingPrice: number = Number.NEGATIVE_INFINITY;
 
 
-        const savedVariantsIds: string[] = [];
-        for (const variant of data.variants) {
-            const unitIds: string[] = [];
+            let createdGroups: VariantGroup[] = [];
+            let variantGroups = data.variantGroups;
+            const unitMap: Map<string, string> = new Map();
 
-            for (let i = 0; i < variant.unitValues.length; i++) {
-                const group = createdGroups[i];
-                const value = variant.unitValues[i];
-                const key = `${group.name}-${value}`;
-                const unitId = unitMap.get(key);
-                if (!unitId) {
-                    throw new Error(`Không tìm thấy unit với key: ${key}`);
+            //save groups like size/corlor/flavor/...etc
+            for (let i = 0; i < variantGroups.length; i++) {
+                let group = variantGroups[i]
+                const savedGroup = await this.variantGroupService.create({
+                    name: variantGroups[i].groupName
+                }, session)
+                createdGroups.push(savedGroup)
+
+
+                for (let unit of group.units) {
+                    const savedUnit = await this.variantUnitService.create({
+                        name: unit.unitName,
+                    }, savedGroup._id, session)
+                    unitMap.set(`${savedGroup.name}-${unit.unitName}`, savedUnit._id);
+
                 }
-                unitIds.push(unitId);
-
             }
 
-            const savedVariant = await this.variantService.create({
-                sku: variant.sku,
-                stock: variant.stock,
-                variantUnits_ids: unitIds,
-                importPrice: variant.importPrice,
-                promotionalPrice: variant.promotionalPrice,
-                sellingPrice: variant.sellingPrice
 
-            });
-            if (variant.promotionalPrice < minPromotionalPrice) minPromotionalPrice = variant.promotionalPrice;
-            if (variant.promotionalPrice > maxPromotionalPrice) maxPromotionalPrice = variant.promotionalPrice;
-            if (variant.sellingPrice < minSellingPrice) minSellingPrice = variant.sellingPrice;
-            if (variant.sellingPrice > maxSellingPrice) maxSellingPrice = variant.sellingPrice;
+            const savedVariantsIds: string[] = [];
+            for (const variant of data.variants) {
+                const unitIds: string[] = [];
 
-            savedVariantsIds.push(savedVariant._id);
+                for (let i = 0; i < variant.unitValues.length; i++) {
+                    const group = createdGroups[i];
+                    const value = variant.unitValues[i];
+                    const key = `${group.name}-${value}`;
+                    const unitId = unitMap.get(key);
+                    if (!unitId) {
+                        throw new Error(`Không tìm thấy unit với key: ${key}`);
+                    }
+                    unitIds.push(unitId);
 
-        }
-        let imageUrls: string[] = []
-        if (imageFiles) {
-            const images = await this.cloudinaryService.uploadMultiple(imageFiles)
-            if (!images) {
-                throw new Error(`Lỗi khi upload ảnh`);
+                }
+
+                const savedVariant = await this.variantService.create({
+                    sku: variant.sku,
+                    stock: variant.stock,
+                    variantUnits_ids: unitIds,
+                    importPrice: variant.importPrice,
+                    promotionalPrice: variant.promotionalPrice,
+                    sellingPrice: variant.sellingPrice
+
+                }, session);
+                if (variant.promotionalPrice < minPromotionalPrice) minPromotionalPrice = variant.promotionalPrice;
+                if (variant.promotionalPrice > maxPromotionalPrice) maxPromotionalPrice = variant.promotionalPrice;
+                if (variant.sellingPrice < minSellingPrice) minSellingPrice = variant.sellingPrice;
+                if (variant.sellingPrice > maxSellingPrice) maxSellingPrice = variant.sellingPrice;
+
+                savedVariantsIds.push(savedVariant._id);
+
             }
-            imageUrls = images
+            let imageUrls: string[] = []
+            if (imageFiles) {
+                const images = await this.cloudinaryService.uploadMultiple(imageFiles)
+                if (!images) {
+                    throw new Error(`Lỗi khi upload ảnh`);
+                }
+                imageUrls = images
+            }
+            log(savedVariantsIds)
+
+
+            const createdProduct = await this.productModel.create({
+                name: data.name,
+                variantIds: savedVariantsIds,
+                categories_ids: data.categories,
+                descriptions: data.descriptions,
+                images: imageUrls,
+                suppliers_id: data.suppliers_id,
+                maxPromotionalPrice,
+                maxSellingPrice,
+                minPromotionalPrice,
+                minSellingPrice,
+                
+            }, { session });
+            const productId = createdProduct[0]?._id;
+
+            await Promise.all(
+                savedVariantsIds.map(variantId =>
+                    this.variantService.updateProductId(variantId, productId.toString(), session)
+                )
+            );
+            await session.commitTransaction();
+            session.endSession();
+            return await this.getProductById(createdProduct[0]._id.toString())
+        } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
+            throw error;
         }
-        log(savedVariantsIds)
 
-
-        const createdProduct = await this.productModel.create({
-            name: data.name,
-            variantIds: savedVariantsIds,
-            categories_ids: data.categories,
-            descriptions: data.descriptions,
-            images: imageUrls,
-            suppliers_id: data.suppliers_id,
-            maxPromotionalPrice,
-            maxSellingPrice,
-            minPromotionalPrice,
-            minSellingPrice,
-        });
-
-        return await this.getProductById(createdProduct._id.toString())
 
     }
 
@@ -218,7 +239,7 @@ export class ProductService {
                     path: "categories_ids"
                 })
                 .populate("suppliers_id"),
-            
+
             this.productModel.countDocuments(filter),
         ]);
         log(rawData)
@@ -263,4 +284,40 @@ export class ProductService {
         await product.save();
         return this.getProductById(productId);
     }
+
+    async editProductDescription(productId:string,dto:CreateProductDescriptionDto[]):Promise<ProductRespondDto>{
+        const product = await this.productModel.updateOne({_id:productId},dto)
+        if(product.modifiedCount<=0){
+            throw new Error("Product not found")
+        }
+        return await this.getProductById(productId)
+    }
+
+    async getProductHasVariantId(variantId: string): Promise<Product> {
+        const product = await this.productModel.findOne({ variantIds: variantId })
+
+        if (!product) {
+            throw new Error("product not found")
+        }
+        return product
+    }
+
+    async editManyProductvariantPrice(productId: string, dto:UpdateProductVariantPriceDto[]):Promise<ProductRespondDto>{
+
+        try {
+            for (let item of dto){
+                await this.variantService.editProductvariantPrice(item)
+            }
+            const product = await this.getProductById(productId)
+            if(!product) {
+                throw new Error("product not found")
+            }
+            return product
+        } catch (error) {
+            throw error
+        }
+    }
+
+    
+
 }

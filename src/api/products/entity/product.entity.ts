@@ -7,9 +7,8 @@ import { ProductDescription, ProductDescriptionSchema } from "./description.enti
 
 @Schema()
 export class Product{
-    @Prop({type:[Types.ObjectId], ref:'VariantGroup'})
-    variantGroupIds:Types.ObjectId[]
 
+    _id:string
     @Prop({type:Boolean, default:false})
     isActivate:boolean
 

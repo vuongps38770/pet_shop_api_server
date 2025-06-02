@@ -8,6 +8,7 @@ import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/t
 import { Supplier } from "./entity/supplier.entity";
 import { RawResponse } from "src/decorators/raw.decorator";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Public } from "../../decorators/public.decorator";
 
 @Controller('supplier')
 export class SupplierController {
@@ -15,7 +16,7 @@ export class SupplierController {
         private readonly categoryService: SupplierService
     ) {
     }
-
+    @Roles(UserRole.ADMIN)
     @Get('site')
     @RawResponse()
     async getSite(): Promise<string> {
@@ -33,6 +34,8 @@ export class SupplierController {
             code:201,
         }
     }
+
+    @Public()
     @Get('get-all')
     async getAllSuppliers(): Promise<PartialStandardResponse<Supplier[]>> {
         const data= await this.categoryService.getAllSupplier();
@@ -40,6 +43,8 @@ export class SupplierController {
             data
         }
     }
+
+    
     @Post('update')
     @Roles(UserRole.ADMIN)
     @UseInterceptors(FileInterceptor('image'))
