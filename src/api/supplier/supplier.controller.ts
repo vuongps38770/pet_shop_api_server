@@ -26,7 +26,7 @@ export class SupplierController {
     @Post('create')
     @HttpCode(201)
     @UseInterceptors(FileInterceptor('image'))
-    @Roles(UserRole.ADMIN)
+    @Public()
     async createSupplier(@Body() data:SupplierDto,@UploadedFile() file: Express.Multer.File  ): Promise<PartialStandardResponse<null>> {
         await this.categoryService.addSupplier(data,file);
         return {
@@ -46,7 +46,7 @@ export class SupplierController {
 
     
     @Post('update')
-    @Roles(UserRole.ADMIN)
+    @Public()
     @UseInterceptors(FileInterceptor('image'))
     async updateSupplier(@Query('id') id:string,@Body() dataUpdate:SupplierDto,@UploadedFile() file: Express.Multer.File):Promise<PartialStandardResponse<Supplier>>{
         const dataRes  = await this.categoryService.updateSupplier(id,dataUpdate,file)
