@@ -25,7 +25,7 @@ export class CategoryController {
     }
 
     @Post('create')
-    @Roles(UserRole.ADMIN)
+    @Public()
     @HttpCode(201)
     async createCategory(@Body() res: CategoryRequestCreateDto): Promise<PartialStandardResponse<Category>> {
         const data = await this.categoryService.addCategory(res);
