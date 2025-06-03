@@ -15,6 +15,7 @@ import { ProductMapper } from "./mappers/product.mapper";
 import { PaginationDto } from "./dto/product-pagination.dto";
 import {  UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
 import { CreateProductDescriptionDto } from "./dto/description-request.dto";
+import { AppException } from "src/common/exeptions/app.exeption";
 
 @Injectable()
 export class ProductService {
@@ -112,7 +113,7 @@ export class ProductService {
             log(savedVariantsIds)
 
 
-            const createdProduct = await this.productModel.create({
+            const newProduct = new this.productModel({
                 name: data.name,
                 variantIds: savedVariantsIds,
                 categories_ids: data.categories,
@@ -123,9 +124,10 @@ export class ProductService {
                 maxSellingPrice,
                 minPromotionalPrice,
                 minSellingPrice,
-                
-            }, { session });
-            const productId = createdProduct[0]?._id;
+            });
+
+            const createdProduct = await newProduct.save({ session });
+            const productId = createdProduct._id;
 
             await Promise.all(
                 savedVariantsIds.map(variantId =>
@@ -134,7 +136,7 @@ export class ProductService {
             );
             await session.commitTransaction();
             session.endSession();
-            return await this.getProductById(createdProduct[0]._id.toString())
+            return await this.getProductById(createdProduct._id.toString())
         } catch (error) {
             await session.abortTransaction();
             session.endSession();
@@ -164,7 +166,10 @@ export class ProductService {
         return ProductMapper.toDto(product);
     }
 
-
+    async getProductByIdAndSimpilize(productId:string){
+        let prod = await this.getProductById(productId)
+        return ProductMapper.mapToSimplize(prod)
+    }
 
     async findAll(paginationDto: PaginationDto): Promise<ProductPaginationRespondDto<ProductRespondSimplizeDto>> {
         const {
@@ -319,5 +324,12 @@ export class ProductService {
     }
 
     
-
+    async validateProduct(productId?: string): Promise<void> {
+        if (productId) {
+            const product = await this.productModel.findById(new Types.ObjectId(productId));
+            if (!product) {
+                throw new AppException('Product not found',404);
+            }
+        }
+    }
 }

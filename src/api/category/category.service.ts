@@ -61,7 +61,7 @@ export class CategoryService implements OnModuleInit {
 
 
     }
-
+    
     async getCategoryById(id: string): Promise<Category | null> {
         return this.categoryModel.findById(id).exec();
     }

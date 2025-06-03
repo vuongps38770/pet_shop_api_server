@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Post } from "@nestjs/common";
 import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 import { CartService } from "./cart.service";
 import { CartRequestCreateDto } from "./dto/cart-request-create.dto";
-import { log } from "console";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 import { CartRespondDto } from "./dto/cart-repspond-respond.dto";
 
@@ -38,6 +37,12 @@ export class CartController {
             code:200,
             message:"Succesfully remove from cart"
         }
+    }
+
+
+    @Post("update-item-quantity")
+    async updateQuantity(@Body("carrtId") carrtId:string,@Body("quantity")quantity:number){
+        await this.updateQuantity(carrtId,quantity)
     }
     
 }

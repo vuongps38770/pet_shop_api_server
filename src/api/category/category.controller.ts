@@ -23,7 +23,7 @@ export class CategoryController {
     async getSite(): Promise<string> {
         return 'Welcome to the Pet Shop API category';
     }
-    @Public()
+
     @Post('create')
     @Roles(UserRole.ADMIN)
     @HttpCode(201)

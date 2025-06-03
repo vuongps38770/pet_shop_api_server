@@ -43,7 +43,7 @@ export class ProductController {
         return {
             code: 200,
             data: data,
-            message: "1235 anh co danh roi nhip lao ko"
+         
         }
     }
     @Public()
@@ -53,17 +53,16 @@ export class ProductController {
         return {
             code: 200,
             data: data,
-            message: "1235 anh co danh roi nhip lao ko"
         }
     }
     @Public()
-    @Get("/admin/getProducts")
+    @Get("admin/getProducts")
     async getProductsAdmin(@Query() paginationDto: PaginationDto): Promise<PartialStandardResponse<ProductPaginationRespondDto<ProductAdminRespondSimplizeDto>>> {
         const data = await this.productService.findAllForAdmin(paginationDto)
         return {
             code: 200,
             data: data,
-            message: "1235 anh co danh roi nhip lao ko"
+           
         }
     }
     @Public()
@@ -77,13 +76,12 @@ export class ProductController {
         }
     }
     @Public()
-    @Post("/admin/updatePrice")
+    @Post("admin/updatePrice")
     async updateProductPrices(@Body("productId") productId: string, @Body() dto: UpdateProductPriceDto): Promise<PartialStandardResponse<ProductRespondDto>> {
         const data = await this.productService.editManyProductvariantPrice(productId, dto.variants)
         return {
             code: 200,
             data,
-
         }
     }
 

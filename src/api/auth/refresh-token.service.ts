@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { log } from "console";
 import { sha256 } from "js-sha256"
 import { RefreshToken } from "./entity/refresh-token.entity";
+import { AppException } from "src/common/exeptions/app.exeption";
 export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,
@@ -38,7 +39,7 @@ export class RefreshTokenService {
 
         if (!refreshToken) {
             console.log("debug -- refreshToken not found", userAgent + " " + userId);
-            return false;
+            throw new AppException("Invalid isExpired",401)
         }
         const isValid = sha256(token) === refreshToken.hashedToken
         log("debugg compare", token + " hashed: " + refreshToken.hashedToken)
@@ -46,13 +47,14 @@ export class RefreshTokenService {
 
         if (!isValid) {
             console.log("debug -- refreshToken not valid after compare");
-            return false;
+            throw new AppException("Invalid token",401)
         }
         const isExpired = refreshToken.expiresAt < new Date();
         if (isExpired) {
+
             log("debug -- refreshToken isExpired")
             await this.refreshTokenRepository.deleteOne({ userId, userAgent });
-            return false;
+            throw new AppException("RefreshToken isExpired",401)
         }
         // Cập nhật thời gian cập nhật
         refreshToken.updatedAt = new Date();
@@ -65,12 +67,12 @@ export class RefreshTokenService {
 
 
 
-    async logOut(userId: string,userAgent:string): Promise<boolean> {
+    async logOut(userId: string, userAgent: string): Promise<boolean> {
         try {
-            await this.refreshTokenRepository.deleteMany({userId,userAgent})
+            await this.refreshTokenRepository.deleteMany({ userId, userAgent })
             return true
         } catch (error) {
-            throw new Error(error.message||"Lỗi")
+            throw new Error(error.message || "Lỗi")
         }
     }
 

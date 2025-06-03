@@ -1,8 +1,8 @@
-import { HttpStatus, Inject, Injectable, Logger, OnModuleInit, Res } from "@nestjs/common";
+import { HttpCode, HttpStatus, Inject, Injectable, Logger, OnModuleInit, Res } from "@nestjs/common";
 import { Response } from 'express';
 import { InjectModel } from "@nestjs/mongoose";
 import { User } from "./entity/user.entity";
-import { Document, Model } from "mongoose";
+import { Document, Model, Types } from "mongoose";
 import { UserCreateData } from "./dto/auth.dto.userCreateData";
 import * as bcrypt from 'bcryptjs';
 import { Otp } from "./models/otp.enity";
@@ -70,6 +70,16 @@ export class AuthService implements OnModuleInit {
         }
     }
 
+
+    async validateUser(userId: string): Promise<void> {
+        const user = await this.userModel.findById(new Types.ObjectId(userId));
+        if (!user) {
+            throw new AppException('User not found', 404);
+        }
+
+
+    }
+
     /*
     signUp thong thuong qua sdt
     usage: test (ko can otp)
@@ -124,7 +134,7 @@ export class AuthService implements OnModuleInit {
             }
         )
         if (!response.ok) {
-            Logger.error(JSON.stringify(response)||"")
+            Logger.error(JSON.stringify(response) || "")
             throw new Error('Failed to send OTP - API error');
         }
         const data = await response.json();
@@ -229,14 +239,18 @@ export class AuthService implements OnModuleInit {
         refreshToken: string,
         userAgent: string
     ): Promise<{ accessToken: string, newRefreshToken: string }> {
+        if (!refreshToken) {
+            throw new AppException(
+                'Refresh token is required',
+                400);
+        }
+
         const payload = this.jwtRefreshService.verify(refreshToken) as TokenPayload;
         if (!payload) {
-            throw new Error('Invalid refresh token');
+            throw new AppException('Invalid refresh token',HttpStatus.UNAUTHORIZED);
         }
-        const isValid = await this.refreshTokenService.validateToken(payload.sub, userAgent, refreshToken);
-        if (!isValid) {
-            throw new Error('Invalid or expired refresh token');
-        }
+        await this.refreshTokenService.validateToken(payload.sub, userAgent, refreshToken);
+        
         const newPayload = new TokenPayload(payload.sub, payload.role);
         const accessToken = this.jwtAccessService.sign(newPayload.toJSON());
         const newRefreshToken = this.jwtRefreshService.sign(newPayload.toJSON());
@@ -244,7 +258,10 @@ export class AuthService implements OnModuleInit {
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
         return { accessToken, newRefreshToken };
+
+
     }
+    
     async logout(userId: string, userAgent: string): Promise<void> {
         await this.refreshTokenService.logOut(userId, userAgent)
     }

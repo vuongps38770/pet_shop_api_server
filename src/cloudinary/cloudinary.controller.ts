@@ -8,6 +8,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from './cloudinary.service'; 
 import { Public } from 'src/decorators/public.decorator';
+import { log } from 'console';
 
 @Controller('upload')
 export class UploadController {
@@ -24,6 +25,7 @@ export class UploadController {
   @UseInterceptors(FilesInterceptor('files'))
   async uploadMultiple(@UploadedFiles() files: Express.Multer.File[]) {
     const urls = await this.uploadService.uploadMultiple(files);
+    log(urls)
     return { urls };
   }
 }

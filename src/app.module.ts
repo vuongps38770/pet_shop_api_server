@@ -16,6 +16,7 @@ import { VariantUnitModule } from './api/variant-units/variant-unit.module';
 import { VariantGroupModule } from './api/variant-group/variant-group.module';
 import { ProductVariantModule } from './api/product-variant/product-variant.module';
 import { CartModule } from './api/cart/cart.module';
+import { FavoriteModule } from './api/favorite/favorite.module';
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { CartModule } from './api/cart/cart.module';
     ProductVariantModule,
     //cartModule
     CartModule,
+    //FavoriteModule
+    FavoriteModule
 
 
 
