@@ -11,7 +11,10 @@ export class ProductMapper {
             name: product?.name||"",
             isActivate: product.isActivate,
             images: product.images || [],
-            suppliers_id: product.suppliers_id?._id?.toString() || null,
+            supplier: {
+                _id:product.suppliers_id?._id || null,
+                name:product.suppliers_id?.name || ""
+            },
             maxPromotionalPrice: product.maxPromotionalPrice,
             maxSellingPrice: product.maxSellingPrice,
             minPromotionalPrice: product.minPromotionalPrice,

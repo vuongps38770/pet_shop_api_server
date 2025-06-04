@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
-
+import { Injectable, Res } from '@nestjs/common';
+import { Response } from 'express';
+import { join } from 'path';
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'con nha ai ma vao api nay loi ngay truoc khi anh nong';
+  getHello(@Res() res: Response) {
+    return res.sendFile(join(process.cwd(), 'dist', 'raw', 'index.html'));
   }
 }

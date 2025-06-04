@@ -13,7 +13,7 @@ import { log } from "console";
 import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
 import { ProductMapper } from "./mappers/product.mapper";
 import { PaginationDto } from "./dto/product-pagination.dto";
-import {  UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
+import { UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
 import { CreateProductDescriptionDto } from "./dto/description-request.dto";
 import { AppException } from "src/common/exeptions/app.exeption";
 
@@ -166,7 +166,7 @@ export class ProductService {
         return ProductMapper.toDto(product);
     }
 
-    async getProductByIdAndSimpilize(productId:string){
+    async getProductByIdAndSimpilize(productId: string) {
         let prod = await this.getProductById(productId)
         return ProductMapper.mapToSimplize(prod)
     }
@@ -290,9 +290,9 @@ export class ProductService {
         return this.getProductById(productId);
     }
 
-    async editProductDescription(productId:string,dto:CreateProductDescriptionDto[]):Promise<ProductRespondDto>{
-        const product = await this.productModel.updateOne({_id:productId},dto)
-        if(product.modifiedCount<=0){
+    async editProductDescription(productId: string, dto: CreateProductDescriptionDto[]): Promise<ProductRespondDto> {
+        const product = await this.productModel.updateOne({ _id: productId }, dto)
+        if (product.modifiedCount <= 0) {
             throw new Error("Product not found")
         }
         return await this.getProductById(productId)
@@ -307,28 +307,71 @@ export class ProductService {
         return product
     }
 
-    async editManyProductvariantPrice(productId: string, dto:UpdateProductVariantPriceDto[]):Promise<ProductRespondDto>{
+    async editManyProductvariantPrice(productId: string, dto: UpdateProductVariantPriceDto[]): Promise<ProductRespondDto> {
 
         try {
-            for (let item of dto){
+            for (let item of dto) {
                 await this.variantService.editProductvariantPrice(item)
             }
             const product = await this.getProductById(productId)
-            if(!product) {
+            if (!product) {
                 throw new Error("product not found")
             }
+            this.updateProductPriceRange(productId)
             return product
         } catch (error) {
             throw error
         }
     }
 
-    
+
+    async updateProductPriceRange(productId: string): Promise<void> {
+        const product = await this.productModel.findById(productId).populate({
+            path: "variantIds",
+            model: "ProductVariant",
+            select: "promotionalPrice sellingPrice"
+        });
+
+        if (!product || !product.variantIds || product.variantIds.length === 0) {
+            throw new Error("Product or variants not found");
+        }
+
+        let minPromotionalPrice = Number.POSITIVE_INFINITY;
+        let maxPromotionalPrice = Number.NEGATIVE_INFINITY;
+        let minSellingPrice = Number.POSITIVE_INFINITY;
+        let maxSellingPrice = Number.NEGATIVE_INFINITY;
+
+        for (const variant of product.variantIds as any[]) {
+            if (variant && typeof variant === 'object' && 'promotionalPrice' in variant && 'sellingPrice' in variant) {
+                if (typeof variant.promotionalPrice === "number") {
+                    if (variant.promotionalPrice < minPromotionalPrice) minPromotionalPrice = variant.promotionalPrice;
+                    if (variant.promotionalPrice > maxPromotionalPrice) maxPromotionalPrice = variant.promotionalPrice;
+                }
+                if (typeof variant.sellingPrice === "number") {
+                    if (variant.sellingPrice < minSellingPrice) minSellingPrice = variant.sellingPrice;
+                    if (variant.sellingPrice > maxSellingPrice) maxSellingPrice = variant.sellingPrice;
+                }
+            }
+        }
+
+      
+        if (minPromotionalPrice === Number.POSITIVE_INFINITY) minPromotionalPrice = 0;
+        if (maxPromotionalPrice === Number.NEGATIVE_INFINITY) maxPromotionalPrice = 0;
+        if (minSellingPrice === Number.POSITIVE_INFINITY) minSellingPrice = 0;
+        if (maxSellingPrice === Number.NEGATIVE_INFINITY) maxSellingPrice = 0;
+
+        product.minPromotionalPrice = minPromotionalPrice;
+        product.maxPromotionalPrice = maxPromotionalPrice;
+        product.minSellingPrice = minSellingPrice;
+        product.maxSellingPrice = maxSellingPrice;
+
+        await product.save();
+    }
     async validateProduct(productId?: string): Promise<void> {
         if (productId) {
             const product = await this.productModel.findById(new Types.ObjectId(productId));
             if (!product) {
-                throw new AppException('Product not found',404);
+                throw new AppException('Product not found', 404);
             }
         }
     }

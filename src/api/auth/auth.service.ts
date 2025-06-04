@@ -150,10 +150,12 @@ export class AuthService implements OnModuleInit {
     }
     // Lưu mã OTP vào cơ sở dữ liệu
     private async savePhoneOtp(phone: string, otp: string): Promise<boolean> {
+        const expiresAt = new Date(Date.now() + 120 * 1000);
         const otpCode = await this.otpModel.create(
             {
                 phone,
                 otp,
+                expiresAt
             }
         )
         if (!otpCode) {
@@ -180,11 +182,11 @@ export class AuthService implements OnModuleInit {
     async checkPhoneOtp(phone: string, otp: string): Promise<boolean> {
         const otpRecord = await this.otpModel.findOne({ phone, otp }).exec();
         if (!otpRecord) {
-            throw new Error('Invalid OTP or phone number');
+            throw new AppException('Invalid OTP or phone number',);
         }
         const currentTime = new Date();
         if (otpRecord.expiresAt && otpRecord.expiresAt < currentTime) {
-            throw new Error('OTP has expired');
+            throw new AppException('OTP has expired');
         }
         // Xóa OTP sau khi kiểm tra thành công
         await this.otpModel.deleteOne({ _id: otpRecord._id }).exec();

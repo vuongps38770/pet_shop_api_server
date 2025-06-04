@@ -61,4 +61,14 @@ export class CategoryController {
             message: "Succesfully"
         }
     }
+    @Public()
+    @Get('get-child-categories')
+    async getChildCategoryBy(@Body("parentId") parentId:string): Promise<PartialStandardResponse<Category[]>> {
+        const dataRes = await this.categoryService.getChildCategories(parentId)
+        return {
+            data: dataRes,
+            message: "Succesfully"
+        }
+    }
+
 }

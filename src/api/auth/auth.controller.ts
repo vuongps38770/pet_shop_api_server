@@ -75,7 +75,7 @@ export class AuthController {
         }
     }
 
-    @Post("logoout_all")
+    @Post("logout_all")
     @RequireAuth()
     async logoutAll(@Body('userId') userId: string, @Res({ passthrough: true }) res: Response): Promise<void> {
         await this.authService.logoutAll(userId);
@@ -111,7 +111,7 @@ export class AuthController {
             success: true
         }
     }
-    
+
 
 
     @Post('oauth/google')

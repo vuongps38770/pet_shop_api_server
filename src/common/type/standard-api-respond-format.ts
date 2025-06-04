@@ -1,3 +1,5 @@
+import { CodeType } from "../exeptions/app.exeption";
+
 export interface IStandardApiResponse<T> {
   data?: T | null;
   message?: string;
@@ -22,4 +24,5 @@ export class StandardApiRespondFailure implements IStandardApiResponse<undefined
   code: number;
   errors: string[];
   path?: string;
+  codeType?:CodeType|undefined
 }

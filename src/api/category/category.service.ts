@@ -68,6 +68,9 @@ export class CategoryService implements OnModuleInit {
     async getCategoriesByType(type: CategoryType): Promise<Category[] | null> {
         return this.categoryModel.find({ categoryType: type, parentId: null }).populate('children')
     }
+    async getChildCategories(parentId:string): Promise<Category[] | null> {
+        return this.categoryModel.find({  parentId })
+    }
     async getAllCategories(): Promise<Category[]> {
         return this.categoryModel.find().exec();
     }

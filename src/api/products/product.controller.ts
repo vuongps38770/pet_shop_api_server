@@ -62,7 +62,6 @@ export class ProductController {
         return {
             code: 200,
             data: data,
-           
         }
     }
     @Public()

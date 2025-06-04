@@ -8,7 +8,6 @@ import { Public } from "../../decorators/public.decorator";
 export class ProductController {
     constructor() {
     }
-    @Public()
     @Get('site')
     @Roles(UserRole.ADMIN, UserRole.USER)
     async getSite(): Promise<string> {

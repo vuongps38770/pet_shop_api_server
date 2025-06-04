@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { StandardApiRespondFailure } from "../type/standard-api-respond-format";
+import { AppException } from "../exeptions/app.exeption";
 
 @Injectable()
 @Catch()
@@ -18,6 +19,13 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
                 ? exception.getResponse()
                 : exception.message || 'Internal server error';
 
+        const codeType =
+            exception instanceof AppException
+                ? exception.codeType
+                : undefined
+
+
+
         const errorList =
             typeof message === 'object' && 'errors' in message
                 ? message.errors
@@ -30,6 +38,7 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
             code: status,
             errors: errorList,
             path: request.url,
+            codeType:codeType
         };
         if (status >= 500) {
             console.error('[INTERNAL ERROR]', {
