@@ -9,6 +9,7 @@ import { Supplier } from "./entity/supplier.entity";
 import { RawResponse } from "src/decorators/raw.decorator";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Public } from "../../decorators/public.decorator";
+import { ParseJsonPipe } from "src/decorators/parse-json-pipe.interceptor";
 
 @Controller('supplier')
 export class SupplierController {
@@ -27,32 +28,36 @@ export class SupplierController {
     @HttpCode(201)
     @UseInterceptors(FileInterceptor('image'))
     @Public()
-    async createSupplier(@Body() data:SupplierDto,@UploadedFile() file: Express.Multer.File  ): Promise<PartialStandardResponse<null>> {
-        await this.categoryService.addSupplier(data,file);
+    async createSupplier(@Body("data", ParseJsonPipe<SupplierDto>) data: SupplierDto, @UploadedFile() file: Express.Multer.File): Promise<PartialStandardResponse<null>> {
+        await this.categoryService.addSupplier(data, file);
         return {
-            message:"Created supplier!",
-            code:201,
+            message: "Created supplier!",
+            code: 201,
         }
     }
 
     @Public()
     @Get('get-all')
     async getAllSuppliers(): Promise<PartialStandardResponse<Supplier[]>> {
-        const data= await this.categoryService.getAllSupplier();
+        const data = await this.categoryService.getAllSupplier();
         return {
             data
         }
     }
 
-    
+
     @Post('update')
     @Public()
     @UseInterceptors(FileInterceptor('image'))
-    async updateSupplier(@Query('id') id:string,@Body() dataUpdate:SupplierDto,@UploadedFile() file: Express.Multer.File):Promise<PartialStandardResponse<Supplier>>{
-        const dataRes  = await this.categoryService.updateSupplier(id,dataUpdate,file)
-        return{
-            data:dataRes,
-            message:"Update succesfully"
+    async updateSupplier(
+        @Query('id') id: string,
+        @Body("data", ParseJsonPipe<SupplierDto>) dataUpdate: SupplierDto,
+        @UploadedFile() file: Express.Multer.File
+    ): Promise<PartialStandardResponse<Supplier>> {
+        const dataRes = await this.categoryService.updateSupplier(id, dataUpdate, file)
+        return {
+            data: dataRes,
+            message: "Update succesfully"
         }
     }
 

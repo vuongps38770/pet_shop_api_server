@@ -84,13 +84,21 @@ export class ProductService {
                     unitIds.push(unitId);
 
                 }
+                let promotionalPrice = variant.promotionalPrice;
+                if (
+                    promotionalPrice === undefined ||
+                    promotionalPrice === null ||
+                    promotionalPrice > variant.sellingPrice
+                ) {
+                    promotionalPrice = variant.sellingPrice;
+                }
 
                 const savedVariant = await this.variantService.create({
                     sku: variant.sku,
                     stock: variant.stock,
                     variantUnits_ids: unitIds,
                     importPrice: variant.importPrice,
-                    promotionalPrice: variant.promotionalPrice,
+                    promotionalPrice: promotionalPrice,
                     sellingPrice: variant.sellingPrice
 
                 }, session);
@@ -112,7 +120,11 @@ export class ProductService {
             }
             log(savedVariantsIds)
 
-
+            if (minPromotionalPrice === Number.POSITIVE_INFINITY) minPromotionalPrice = 0;
+            if (maxPromotionalPrice === Number.NEGATIVE_INFINITY) maxPromotionalPrice = 0;
+            if (minSellingPrice === Number.POSITIVE_INFINITY) minSellingPrice = 0;
+            if (maxSellingPrice === Number.NEGATIVE_INFINITY) maxSellingPrice = 0;
+            
             const newProduct = new this.productModel({
                 name: data.name,
                 variantIds: savedVariantsIds,
@@ -354,7 +366,7 @@ export class ProductService {
             }
         }
 
-      
+
         if (minPromotionalPrice === Number.POSITIVE_INFINITY) minPromotionalPrice = 0;
         if (maxPromotionalPrice === Number.NEGATIVE_INFINITY) maxPromotionalPrice = 0;
         if (minSellingPrice === Number.POSITIVE_INFINITY) minSellingPrice = 0;
