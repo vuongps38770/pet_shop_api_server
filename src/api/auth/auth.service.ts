@@ -11,7 +11,7 @@ import { RefreshTokenService } from "./refresh-token.service";
 import { TokenPayload } from "./models/token-payload";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 import { AppException } from "src/common/exeptions/app.exeption";
-import { log } from "console";
+
 @Injectable()
 export class AuthService implements OnModuleInit {
     constructor(

@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UploadedFile, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import e from "express";
 import { Roles } from "src/decorators/roles.decorator";
 import { UserRole } from "../auth/models/role.enum";
 import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/type/standard-api-respond-format";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/product-request.dto";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
 import { PaginationDto } from "./dto/product-pagination.dto";
 import { UpdateProductDto, UpdateProductPriceDto } from "./dto/product-update.dto";
@@ -24,8 +24,24 @@ export class ProductController {
         return 'Welcome to the Pet Shop API Products';
     }
     @Public()
+    @Post('create-test')
+    @UseInterceptors(FilesInterceptor('images'))
+    async createProductTest(@Body("data") dataString: string, @UploadedFiles() files: Express.Multer.File[]): Promise<PartialStandardResponse<ProductRespondDto>> {
+        const req: CreateProductDto = JSON.parse(dataString);
+        console.log(dataString);
+        
+        const data = await this.productService.createProduct(req, files)
+        return {
+            code: 201,
+            message: "created",
+            data: data,
+        }
+    }
+
+
+    @Public()
     @Post('create')
-    @UseInterceptors(FileInterceptor('image'))
+    @UseInterceptors(FilesInterceptor('images'))
     async createProduct(@Body() req: CreateProductDto, @UploadedFiles() files: Express.Multer.File[]): Promise<PartialStandardResponse<ProductRespondDto>> {
         const data = await this.productService.createProduct(req, files)
         return {
