@@ -28,6 +28,7 @@ export class VariantGroupRespondDto {
 }
 export class VariantUnitRespondDto {
     _id: string
+
     unitName: string
 }
 export class VariantRespondDto {

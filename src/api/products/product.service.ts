@@ -124,7 +124,7 @@ export class ProductService {
             if (maxPromotionalPrice === Number.NEGATIVE_INFINITY) maxPromotionalPrice = 0;
             if (minSellingPrice === Number.POSITIVE_INFINITY) minSellingPrice = 0;
             if (maxSellingPrice === Number.NEGATIVE_INFINITY) maxSellingPrice = 0;
-            
+
             const newProduct = new this.productModel({
                 name: data.name,
                 variantIds: savedVariantsIds,
@@ -165,7 +165,11 @@ export class ProductService {
                 path: 'variantIds',
                 populate: {
                     path: 'variantUnits_ids',
-                    model: 'VariantUnit'
+                    populate: {
+                        path: 'variantGroupId', 
+                        model: 'VariantGroup'
+                    }
+
                 }
             })
             .populate('categories_ids')

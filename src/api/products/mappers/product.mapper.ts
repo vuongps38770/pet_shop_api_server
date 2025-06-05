@@ -43,6 +43,7 @@ export class ProductMapper {
                 promotionalPrice: v.promotionalPrice,
                 unitValues: (v.variantUnits_ids || []).map((uv: any): VariantUnitRespondDto => ({
                     _id: uv._id.toString(),
+                   
                     unitName: uv?.name||"",
                 })),
             })),
