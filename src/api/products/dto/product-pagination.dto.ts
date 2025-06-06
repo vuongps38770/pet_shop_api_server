@@ -29,10 +29,14 @@ export class PaginationDto {
     @IsOptional()
     categoryId?: string;
 
-    
+
     @IsOptional()
     supplierId?: string
 
     @IsOptional()
     rootCategoryId?:string;
+
+    
+    @IsOptional()
+    inStock?:boolean
 }

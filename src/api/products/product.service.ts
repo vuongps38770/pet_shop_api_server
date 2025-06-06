@@ -26,7 +26,7 @@ export class ProductService {
         private readonly variantUnitService: VariantUnitService,
         private readonly variantService: ProductVariantService,
         private readonly cloudinaryService: CloudinaryService,
-        private readonly categoryService:CategoryService,
+        private readonly categoryService: CategoryService,
         @InjectConnection() private readonly connection: Connection,
 
     ) { }
@@ -75,6 +75,11 @@ export class ProductService {
             for (const variant of data.variants) {
                 const unitIds: string[] = [];
 
+                // Đảm bảo variant.unitValues và createdGroups có cùng độ dài
+                if (variant.unitValues.length !== createdGroups.length) {
+                    throw new Error(`Số lượng giá trị variant (${variant.unitValues.length}) không khớp với số lượng group (${createdGroups.length})`);
+                }
+
                 for (let i = 0; i < variant.unitValues.length; i++) {
                     const group = createdGroups[i];
                     const value = variant.unitValues[i];
@@ -84,7 +89,6 @@ export class ProductService {
                         throw new Error(`Không tìm thấy unit với key: ${key}`);
                     }
                     unitIds.push(unitId);
-
                 }
                 let promotionalPrice = variant.promotionalPrice;
                 if (
@@ -196,8 +200,8 @@ export class ProductService {
             sortBy = 'createdAt',
             order = 'desc',
         } = paginationDto;
-        
-        
+
+
         const skip = (page - 1) * limit;
         const filter: any = {};
         if (paginationDto.search?.trim()) {
@@ -214,7 +218,7 @@ export class ProductService {
 
         else if (paginationDto.rootCategoryId?.trim()) {
             const childCategoryIds = await this.categoryService.getChildIds(paginationDto.rootCategoryId);
-            
+
 
             filter.categories_ids = { $in: childCategoryIds };
         }
@@ -225,15 +229,20 @@ export class ProductService {
         const sortOption: any = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
         console.log(filter);
-        
+
         let [rawData, total] = await Promise.all([
             this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit),
             this.productModel.countDocuments(filter),
         ]);
+
+
+  
+
+
         const data = rawData.map(item =>
             ProductMapper.mapToSimplize(item)
         )
-        log(rawData)
+        
         const totalPages = Math.ceil(total / limit);
 
         return {
