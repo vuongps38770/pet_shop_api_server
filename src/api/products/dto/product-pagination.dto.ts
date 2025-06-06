@@ -23,4 +23,16 @@ export class PaginationDto {
     @IsOptional()
     @IsIn(['asc', 'desc'])
     order?: 'asc' | 'desc' = 'desc';
+
+
+
+    @IsOptional()
+    categoryId?: string;
+
+    
+    @IsOptional()
+    supplierId?: string
+
+    @IsOptional()
+    rootCategoryId?:string;
 }

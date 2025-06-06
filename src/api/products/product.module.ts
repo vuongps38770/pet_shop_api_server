@@ -9,6 +9,7 @@ import { VariantUnitModule } from "../variant-units/variant-unit.module";
 import { VariantGroupModule } from "../variant-group/variant-group.module";
 import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
 import { ProductVariantModule } from "../product-variant/product-variant.module";
+import { CategoryModule } from "../category/category.module";
 
 
 @Module({
@@ -27,7 +28,8 @@ import { ProductVariantModule } from "../product-variant/product-variant.module"
         VariantUnitModule,
         VariantGroupModule,
         CloudinaryModule,
-        ProductVariantModule
+        ProductVariantModule,
+        CategoryModule
     ],
     controllers: [ProductController],
     providers: [ProductService],

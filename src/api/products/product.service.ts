@@ -16,6 +16,7 @@ import { PaginationDto } from "./dto/product-pagination.dto";
 import { UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
 import { CreateProductDescriptionDto } from "./dto/description-request.dto";
 import { AppException } from "src/common/exeptions/app.exeption";
+import { CategoryService } from "../category/category.service";
 
 @Injectable()
 export class ProductService {
@@ -25,6 +26,7 @@ export class ProductService {
         private readonly variantUnitService: VariantUnitService,
         private readonly variantService: ProductVariantService,
         private readonly cloudinaryService: CloudinaryService,
+        private readonly categoryService:CategoryService,
         @InjectConnection() private readonly connection: Connection,
 
     ) { }
@@ -166,7 +168,7 @@ export class ProductService {
                 populate: {
                     path: 'variantUnits_ids',
                     populate: {
-                        path: 'variantGroupId', 
+                        path: 'variantGroupId',
                         model: 'VariantGroup'
                     }
 
@@ -191,22 +193,39 @@ export class ProductService {
         const {
             page = 1,
             limit = 10,
-            search,
             sortBy = 'createdAt',
             order = 'desc',
         } = paginationDto;
-
+        
+        
         const skip = (page - 1) * limit;
+        const filter: any = {};
+        if (paginationDto.search?.trim()) {
+            filter.$or = [
+                { name: { $regex: paginationDto.search.trim(), $options: 'i' } },
+                { brand: { $regex: paginationDto.search.trim(), $options: 'i' } },
+            ];
+        }
 
-        const filter = search
-            ? {
-                name: { $regex: search, $options: 'i' },
-            }
-            : {};
+        if (paginationDto.categoryId?.trim()) {
+            console.log(paginationDto.categoryId);
+            filter.categories_ids = { $in: [paginationDto.categoryId] };
+        }
 
+        else if (paginationDto.rootCategoryId?.trim()) {
+            const childCategoryIds = await this.categoryService.getChildIds(paginationDto.rootCategoryId);
+            
+
+            filter.categories_ids = { $in: childCategoryIds };
+        }
+
+        if (paginationDto.supplierId?.trim()) {
+            filter.suppliers_id = paginationDto.supplierId;
+        }
         const sortOption: any = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
-
+        console.log(filter);
+        
         let [rawData, total] = await Promise.all([
             this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit),
             this.productModel.countDocuments(filter),

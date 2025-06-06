@@ -90,6 +90,12 @@ export class CategoryService implements OnModuleInit {
     }
 
 
+    async getChildIds(parentId:string):Promise<string[]>{
+        const data = await this.categoryModel.findById(parentId)
+        if(!data) return []
+        return data?.children?.map(child => child.toString()) ?? []
+    }
+
     // async deleteCategory(id: string): Promise<Category|null> {
     //     // check if category is used in products
     //     const category = await this.categoryModel.findById(id).exec();
