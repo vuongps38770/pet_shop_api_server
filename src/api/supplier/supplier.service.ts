@@ -23,7 +23,7 @@ export class SupplierService {
         }
         const newSupplier = new this.supplierModel({
             ...supplier,
-            image: image
+            image: img
         });
         return newSupplier.save();
     }
