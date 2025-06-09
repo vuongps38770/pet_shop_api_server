@@ -66,7 +66,7 @@ export class AuthService implements OnModuleInit {
     async checkIfExistPhone(phone: string) {
         const existingUser = await this.findByPhone(phone);
         if (existingUser) {
-            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT);
+            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT,"PHONE_EXISTED");
         }
     }
 
@@ -74,7 +74,7 @@ export class AuthService implements OnModuleInit {
     async validateUser(userId: string): Promise<void> {
         const user = await this.userModel.findById(new Types.ObjectId(userId));
         if (!user) {
-            throw new AppException('User not found', 404);
+            throw new AppException('User not found', 404,"USER_NOT_FOUND");
         }
 
 
@@ -109,6 +109,7 @@ export class AuthService implements OnModuleInit {
     */
 
     async sendPhoneOtpToPhone(phone: string): Promise<boolean> {
+        await this.checkIfExistPhone(phone)
         const otp_api_key = process.env.OTP_API_KEY;
         const otp_api_url = process.env.OTP_API_URL;
         const otp_api_secret = process.env.OTP_API_SECRET;

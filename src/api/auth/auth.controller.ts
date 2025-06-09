@@ -104,7 +104,7 @@ export class AuthController {
     
     @Post('logout')
     @RequireAuth()
-    async logOut(@CurrentUserId() userId: string, @Body() userAgent: string): Promise<StandardApiRespondSuccess<void>> {
+    async logOut(@CurrentUserId() userId: string, @Body("userAgent") userAgent: string): Promise<StandardApiRespondSuccess<void>> {
         await this.authService.logout(userId, userAgent)
         return {
             message: 'logged out',
