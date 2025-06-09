@@ -1,4 +1,5 @@
-import { CodeType } from "../exeptions/app.exeption";
+import { ApiErrorStatus } from "src/constants/api.error.keys";
+
 
 export interface IStandardApiResponse<T> {
   data?: T | null;
@@ -24,5 +25,5 @@ export class StandardApiRespondFailure implements IStandardApiResponse<undefined
   code: number;
   errors: string[];
   path?: string;
-  codeType?:CodeType|undefined
+  codeType?:string|undefined
 }

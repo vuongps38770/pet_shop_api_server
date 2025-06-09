@@ -38,7 +38,7 @@ export class AllExceptionsInterceptor implements ExceptionFilter {
             code: status,
             errors: errorList,
             path: request.url,
-            codeType:codeType
+            codeType: codeType
         };
         if (status >= 500) {
             console.error('[INTERNAL ERROR]', {
