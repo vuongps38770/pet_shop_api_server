@@ -9,5 +9,7 @@ export class CartRespondDto {
     sellingPrice:number
     productName:string
     product_id:string
+    createdAt: Date
+    updatedAt: Date
 }
 

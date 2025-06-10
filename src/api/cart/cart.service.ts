@@ -18,17 +18,26 @@ export class CartService {
     ) { }
 
 
-    async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<Cart> {
+    async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto> {
         const existCart = await this.cartModel.findOne({ userId, productVariantId: cartdto.productVariantId })
         if (existCart) {
-            existCart.quantity += cartdto.quantity;
-            return await existCart.save();
+            existCart.quantity =cartdto.quantity;
+            if (existCart.quantity < 1) {
+                throw new AppException("Invalid number for cart!", HttpStatus.BAD_REQUEST);
+            }
+            existCart.updatedAt = new Date();
+            const updatedCart = await existCart.save();
+            log("Updated cart:", JSON.stringify(updatedCart));
+            const cartPopulated = await this.getCartById(updatedCart._id.toString());
+            return cartPopulated;
         }
-        return await this.cartModel.create({
+        const newCart = await this.cartModel.create({
             productVariantId: cartdto.productVariantId,
             quantity: cartdto.quantity,
             userId: userId
-        })
+        });
+        const cartPopulated = await this.getCartById(newCart._id.toString());
+        return CartRespondMapper.todo(cartPopulated);
     }
 
     async getCart(userId: string): Promise<CartRespondDto[]> {
@@ -41,8 +50,27 @@ export class CartService {
                     })
                 }
             )
+        
         log(JSON.stringify(carts))
+        // already checked if carts is out of stock in CartRespondMapper.todo ko hiểu thì lên gg mà dịch hẹ hẹ hẹ
         return (carts || []).map((item) => CartRespondMapper.todo(item))
+    }
+
+
+    async getCartById(cartId: string): Promise<CartRespondDto> {
+        const cart = await this.cartModel.findById(cartId)
+            .populate(
+                {
+                    path: "productVariantId",
+                    populate: ({
+                        path: "productId"
+                    })
+                }
+            )
+        if (!cart) {
+            throw new AppException("Cart item not found!", HttpStatus.NOT_FOUND)
+        }
+        return CartRespondMapper.todo(cart);
     }
     async removeFromCart(userId: string, cartId: string): Promise<void> {
         const result = await this.cartModel.deleteOne({ _id: cartId, userId })

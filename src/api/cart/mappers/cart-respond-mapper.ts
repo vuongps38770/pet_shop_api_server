@@ -14,7 +14,9 @@ export class CartRespondMapper {
             promotionalPrice: cart?.productVariantId?.promotionalPrice ?? 0,
             sellingPrice: cart?.productVariantId?.sellingPrice ?? 0,
             quantity: cart?.quantity ?? 0,
-            product_id:cart?.productVariantId?.productId?._id
+            product_id:cart?.productVariantId?.productId?._id,
+            createdAt: cart?.createdAt,
+            updatedAt: cart?.updatedAt
         }
     }
 }

@@ -10,5 +10,9 @@ export class Cart{
     productVariantId:Types.ObjectId
     @Prop({required:true})
     quantity:number
+    @Prop({default:Date.now})
+    createdAt: Date
+    @Prop({default:Date.now})
+    updatedAt: Date
 }
 export const CartSchema = SchemaFactory.createForClass(Cart)
