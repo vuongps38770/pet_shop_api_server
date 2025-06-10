@@ -12,7 +12,7 @@ export class CartController {
     ) { }
 
     @Post('add-to-cart')
-    async addToCart(@CurrentUserId() usId: string, @Body() cartDto: CartRequestCreateDto): Promise<PartialStandardResponse<CartRespondDto>> {
+    async addToCart(@CurrentUserId() usId: string, @Body() cartDto: CartRequestCreateDto): Promise<PartialStandardResponse<CartRespondDto[]>> {
         const res = await this.cartService.addToCart(usId,cartDto)
         return{
             code:200,   

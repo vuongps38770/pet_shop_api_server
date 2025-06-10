@@ -18,7 +18,7 @@ export class CartService {
     ) { }
 
 
-    async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto> {
+    async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto[]> {
         const existCart = await this.cartModel.findOne({ userId, productVariantId: cartdto.productVariantId })
         if (existCart) {
             existCart.quantity =cartdto.quantity;
@@ -28,16 +28,23 @@ export class CartService {
             existCart.updatedAt = new Date();
             const updatedCart = await existCart.save();
             log("Updated cart:", JSON.stringify(updatedCart));
-            const cartPopulated = await this.getCartById(updatedCart._id.toString());
-            return cartPopulated;
+            const cartList = await this.getCart(userId);
+            return cartList;
         }
+
+
+        
         const newCart = await this.cartModel.create({
             productVariantId: cartdto.productVariantId,
             quantity: cartdto.quantity,
             userId: userId
         });
-        const cartPopulated = await this.getCartById(newCart._id.toString());
-        return CartRespondMapper.todo(cartPopulated);
+
+        if (!newCart) {
+            throw new AppException("Failed to add to cart!", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        const cartList = await this.getCart(userId);
+        return cartList;
     }
 
     async getCart(userId: string): Promise<CartRespondDto[]> {
