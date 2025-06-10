@@ -33,7 +33,7 @@ export class CartService {
         }
 
 
-        
+
         const newCart = await this.cartModel.create({
             productVariantId: cartdto.productVariantId,
             quantity: cartdto.quantity,
@@ -79,12 +79,14 @@ export class CartService {
         }
         return CartRespondMapper.todo(cart);
     }
-    async removeFromCart(userId: string, cartId: string): Promise<void> {
+    async removeFromCart(userId: string, cartId: string): Promise<CartRespondDto[]> {
         const result = await this.cartModel.deleteOne({ _id: cartId, userId })
         const res = result.deletedCount > 0;
         if (!res) {
             throw new Error("cart item not found!")
         }
+        const cartList = await this.getCart(userId);
+        return cartList;
     }
 
     async updateQuantityCartItem(cartId: string, quantity: number) {
