@@ -8,5 +8,6 @@ export class CartRespondDto {
     promotionalPrice:number
     sellingPrice:number
     productName:string
+    product_id:string
 }
 

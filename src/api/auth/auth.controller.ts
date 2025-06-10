@@ -53,7 +53,6 @@ export class AuthController {
         return {
             message: "OPT sent"
         }
-
     }
 
 

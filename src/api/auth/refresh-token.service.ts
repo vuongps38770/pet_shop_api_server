@@ -54,7 +54,7 @@ export class RefreshTokenService {
 
             log("debug -- refreshToken isExpired")
             await this.refreshTokenRepository.deleteOne({ userId, userAgent });
-            throw new AppException("RefreshToken isExpired",401)
+            throw new AppException("RefreshToken isExpired",401,"EXPIRED_TOKEN")
         }
         // Cập nhật thời gian cập nhật
         refreshToken.updatedAt = new Date();

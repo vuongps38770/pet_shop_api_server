@@ -31,7 +31,7 @@ export class CartController {
         }
     }
     @Delete("remove")
-    async removeFromCart(@CurrentUserId() usId:string,@Body()cartId:string):Promise<PartialStandardResponse<void>>{
+    async removeFromCart(@CurrentUserId() usId:string,@Body("cartId")cartId:string):Promise<PartialStandardResponse<void>>{
         await this.cartService.removeFromCart(usId,cartId);
         return{
             code:200,
