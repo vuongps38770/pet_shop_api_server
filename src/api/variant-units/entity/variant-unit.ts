@@ -6,7 +6,7 @@ export class VariantUnit{
     _id:string;
     @Prop({required:true})
     name:string
-    @Prop({type:Types.ObjectId,ref:"variantgroups"})
+    @Prop({type:Types.ObjectId,ref:"VariantGroup"})
     variantGroupId:Types.ObjectId
 }   
 

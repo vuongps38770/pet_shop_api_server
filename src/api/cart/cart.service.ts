@@ -14,14 +14,14 @@ import { AppException } from "src/common/exeptions/app.exeption";
 export class CartService {
     constructor(
         @InjectModel("cart") private readonly cartModel: Model<Cart>,
-        private readonly productSerVice: ProductService
+        private readonly productService: ProductService
     ) { }
 
 
     async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto[]> {
         const existCart = await this.cartModel.findOne({ userId, productVariantId: cartdto.productVariantId })
         if (existCart) {
-            existCart.quantity =cartdto.quantity;
+            existCart.quantity = cartdto.quantity;
             if (existCart.quantity < 1) {
                 throw new AppException("Invalid number for cart!", HttpStatus.BAD_REQUEST);
             }
@@ -52,12 +52,22 @@ export class CartService {
             .populate(
                 {
                     path: "productVariantId",
-                    populate: ({
-                        path: "productId"
-                    })
+                    populate: ([
+                        {
+                            path: "productId"
+                        },
+                        {
+                            path: "variantUnits_ids",
+                            populate: {
+                                path: 'variantGroupId'
+                            }
+                        }
+                    ])
+
                 }
             )
-        
+
+
         log(JSON.stringify(carts))
         // already checked if carts is out of stock in CartRespondMapper.todo ko hiểu thì lên gg mà dịch hẹ hẹ hẹ
         return (carts || []).map((item) => CartRespondMapper.todo(item))
@@ -69,9 +79,17 @@ export class CartService {
             .populate(
                 {
                     path: "productVariantId",
-                    populate: ({
-                        path: "productId"
-                    })
+                    populate: ([
+                        {
+                            path: "productId"
+                        },
+                        {
+                            path: "variantUnits_ids",
+                            populate: {
+                                path: 'variantGroupId'
+                            }
+                        }
+                    ])
                 }
             )
         if (!cart) {

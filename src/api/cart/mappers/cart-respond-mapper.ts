@@ -16,7 +16,15 @@ export class CartRespondMapper {
             quantity: cart?.quantity ?? 0,
             product_id:cart?.productVariantId?.productId?._id,
             createdAt: cart?.createdAt,
-            updatedAt: cart?.updatedAt
+            updatedAt: cart?.updatedAt,
+            groups: cart?.productVariantId?.variantUnits_ids?.map((unit: any) => ({
+                _id: unit?.variantGroupId?._id,
+                name: unit?.variantGroupId?.name || '',
+                unit: {
+                    _id: unit?._id,
+                    name: unit?.name || ''
+                }
+            })) || []
         }
     }
 }
