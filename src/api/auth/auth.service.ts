@@ -11,6 +11,7 @@ import { RefreshTokenService } from "./refresh-token.service";
 import { TokenPayload } from "./models/token-payload";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 import { AppException } from "src/common/exeptions/app.exeption";
+import { UserRespondDto } from "./dto/user.dto.respond";
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -324,5 +325,20 @@ export class AuthService implements OnModuleInit {
 
 
     // }
+
+
+    async getUserInfo(userId: string): Promise<UserRespondDto> {
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+            throw new AppException("User not found", HttpStatus.NOT_FOUND);
+        }
+        return {
+            email: user.email,
+            name: user.name,
+            surName: user.surName,
+            phone: user.phone,
+            avatar: user.avatar
+        }
+    }
 
 }

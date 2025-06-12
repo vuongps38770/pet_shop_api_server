@@ -32,7 +32,7 @@ export class FavoriteController {
         await this.favoriteService.removeFromFavorite(usId,productId)
     }
 
-    @Post("get-favorite-list")
+    @Get("get-favorite-list")
     async getProductList(@CurrentUserId()usId:string):Promise<PartialStandardResponse<ProductRespondSimplizeDto[]>>{
         const data = await this.favoriteService.getProductList(usId)
         return{

@@ -7,6 +7,7 @@ import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/t
 import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 import { RawResponse } from "src/decorators/raw.decorator";
 import { Public } from "../../decorators/public.decorator";
+import { UserRespondDto } from "./dto/user.dto.respond";
 
 @Controller('auth')
 export class AuthController {
