@@ -19,7 +19,9 @@ export class Address{
     lat:number
     @Prop()
     lng:number
-
+    @Prop()
+    receiverFullname:string
+    
     @Prop({type:Date,default:Date.now})
     createdDate:Date
 

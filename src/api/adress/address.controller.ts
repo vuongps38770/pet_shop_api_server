@@ -46,7 +46,6 @@ export class AddressController {
         const data = await this.addressService.createAddress(usId, dto)
         return {
             data
-
         }
     }
     @Get('my')
