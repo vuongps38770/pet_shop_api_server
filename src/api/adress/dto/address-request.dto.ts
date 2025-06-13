@@ -24,6 +24,9 @@ export class AddressCreateRequestDto {
     @IsOptional()
     @IsNumber()
     lng?: number;
+    @IsString()
+    @IsNotEmpty()
+    receiverFullname: string
 }
 
 export class AddressEditRequestDto {
