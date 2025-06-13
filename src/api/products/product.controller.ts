@@ -81,7 +81,7 @@ export class ProductController {
         }
     }
     @Public()
-    @Post("update-basic-info/:id")
+    @Post("update-basic-info/:productId")
     async updateProductBasicInfo(@Body() data: UpdateProductDto, @Param("productId") id: string): Promise<PartialStandardResponse<ProductRespondDto>> {
         const resData = await this.productService.editProductBasicInfo(id, data)
         return {
