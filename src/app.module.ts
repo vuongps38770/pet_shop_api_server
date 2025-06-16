@@ -18,6 +18,7 @@ import { ProductVariantModule } from './api/product-variant/product-variant.modu
 import { CartModule } from './api/cart/cart.module';
 import { FavoriteModule } from './api/favorite/favorite.module';
 import { AddressModule } from './api/adress/address.module';
+import { UsersModule } from './api/users/users.module';
 
 @Module({
   imports: [
@@ -58,6 +59,8 @@ import { AddressModule } from './api/adress/address.module';
     FavoriteModule,
     //AddressModule
     AddressModule,
+    //UsersModule
+    UsersModule,
 
 
 
