@@ -7,9 +7,6 @@ import { VariantUnit, VariantUnitSchema } from "src/api/variant-units/entity/var
 export class ProductVariant {
     _id: string
 
-    @Prop({ type: Types.ObjectId, ref: 'product' })
-    product_id: Types.ObjectId
-
     @Prop({ })
     sku: string
 

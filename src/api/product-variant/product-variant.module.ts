@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ProductController } from "./product-variant.controller";
+import { ProductVariantController } from "./product-variant.controller";
 import { Mongoose } from "mongoose";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ProductVariantSchema } from "./entity/product-variant.entity";
@@ -20,7 +20,7 @@ import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
         ]),
         
     ],
-    controllers: [],
+    controllers: [ProductVariantController],
     providers: [ProductVariantService],
     exports: [ProductVariantService],
 

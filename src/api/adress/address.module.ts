@@ -6,7 +6,9 @@ import { AddressSchema } from "./entity/address.entity";
 
 @Module({
     controllers:[AddressController],
-    exports:[AddressService],
+    exports:[AddressService,
+        MongooseModule 
+    ],
     imports:[
         MongooseModule.forFeature([
             {

@@ -19,10 +19,15 @@ import { CartModule } from './api/cart/cart.module';
 import { FavoriteModule } from './api/favorite/favorite.module';
 import { AddressModule } from './api/adress/address.module';
 import { UsersModule } from './api/users/users.module';
-
+import { OrderDetailModule } from './api/order-detail/order-detail.module';
+import { OrderModule } from './api/order/order.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { OrderAutoCancelService } from './jobs/order-auto-cancel';
+import { PaymentModule } from './api/payment/payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -61,17 +66,26 @@ import { UsersModule } from './api/users/users.module';
     AddressModule,
     //UsersModule
     UsersModule,
-
+    //OrderDetailModule
+    OrderDetailModule,
+    //OrderModul
+    // e
+    OrderModule,
+    //PaymentModule
+    PaymentModule
 
 
   ],
   controllers: [AppController],
-  providers: [AppService,
+  providers: [
+    AppService,
     {
       provide:APP_GUARD,
       useClass: AuthGuard, 
-    }
+    },
+    OrderAutoCancelService
   ],
+  
 })
 export class AppModule implements OnModuleInit {
   private readonly logger = new Logger(AppModule.name);

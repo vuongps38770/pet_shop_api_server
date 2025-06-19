@@ -1,0 +1,111 @@
+QUY TRÌNH TẠO ĐƠN HÀNG - FILE DOCUMENTATION
+
+MỤC TIÊU:
+- Đảm bảo tạo đơn hàng đúng, không gian lận.
+- Lock giá và tồn kho tại thời điểm đặt hàng.
+- Hỗ trợ COD và chuyển khoản.
+- Tự động xử lý huỷ đơn nếu quá hạn.
+
+---
+
+1. GIAI ĐOẠN FRONTEND (CLIENT)
+
+1.1. Người dùng thao tác:
+- Chọn sản phẩm và thêm vào giỏ hàng.
+- Điền địa chỉ nhận hàng.
+- Chọn phương thức thanh toán (COD hoặc BANK).
+- Bấm nút "Đặt hàng".
+
+1.2. Payload gửi lên server:
+POST /orders
+{
+  "shippingAddress": {
+    "receiver": "Nguyễn Văn A",
+    "phone": "0909xxxxxx",
+    "province": "Hồ Chí Minh",
+    "district": "Quận 1",
+    "ward": "Phường Bến Nghé",
+    "street": "12 Nguyễn Huệ"
+  },
+  "paymentType": "COD", // hoặc "BANK"
+  "orderItem": [
+    { "productId": "abc123", "quantity": 2 },
+    { "productId": "xyz456", "quantity": 1 }
+  ]
+}
+
+---
+
+2. GIAI ĐOẠN BACKEND XỬ LÝ
+
+2.1. Kiểm tra dữ liệu đầu vào:
+- Kiểm tra địa chỉ, phương thức thanh toán hợp lệ.
+- Kiểm tra mảng orderItem không rỗng.
+
+2.2. Lặp qua từng productId:
+- Truy vấn dữ liệu sản phẩm từ DB.
+- Kiểm tra sản phẩm có tồn tại không.
+- Kiểm tra còn đủ stock không.
+- Lấy giá hiện tại để lock lại.
+
+2.3. Lock giá và stock:
+- Tính toán tổng tiền từng sản phẩm:
+  total = unitPrice * quantity
+- Cộng dồn total toàn bộ đơn hàng.
+- Trừ stock ngay nếu stock đủ.
+
+2.4. Tạo bản ghi trong DB:
+- Lưu bản ghi vào bảng `orders`:
+  + userId
+  + address
+  + paymentType
+  + status: "PENDING"
+  + totalPrice
+- Lưu từng dòng vào bảng `order_items`:
+  + orderId
+  + productId
+  + quantity
+  + unitPrice
+  + totalItemPrice
+
+2.5. Gửi phản hồi về client:
+- Trả về thông tin đơn hàng + mã đơn hàng + trạng thái.
+
+---
+
+3. XỬ LÝ ĐẶC BIỆT THEO LOẠI THANH TOÁN
+
+3.1. COD (Thanh toán khi nhận hàng):
+- Giữ đơn ở trạng thái "PENDING".
+- Có thể dùng timer/cronjob để auto cancel nếu quá 30 phút chưa xác nhận.
+- Nếu huỷ đơn hoặc timeout: hoàn lại stock.
+
+3.2. Chuyển khoản (BANK):
+- Chuyển đơn sang trạng thái "WAIT_FOR_PAYMENT".
+- Khi thanh toán xong: cập nhật thành "PAID".
+- Nếu timeout chưa thanh toán: huỷ đơn + trả stock.
+
+---
+
+4. QUẢN LÝ STOCK
+
+Option 1 (đơn giản):
+- Trừ stock trực tiếp khi đặt hàng.
+- Cộng lại stock nếu đơn bị huỷ.
+
+Option 2 (chuyên nghiệp):
+- Tạo 2 cột: `stock_total`, `stock_locked`.
+- Khi đặt hàng: tăng `stock_locked`.
+- Khi huỷ: giảm `stock_locked`.
+- Khi giao hàng thành công: giảm `stock_total` và `stock_locked`.
+
+---
+
+5. TRẠNG THÁI ĐƠN HÀNG
+
+- PENDING: Đã đặt nhưng chưa xử lý.
+- WAIT_FOR_PAYMENT: Chờ thanh toán.
+- PAID: Đã thanh toán.
+- SHIPPING: Đang giao.
+- DELIVERED: Đã giao thành công.
+- CANCELED: Đã huỷ do người dùng / timeout / lỗi.

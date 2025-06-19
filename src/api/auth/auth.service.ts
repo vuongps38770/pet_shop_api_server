@@ -12,6 +12,7 @@ import { TokenPayload } from "./models/token-payload";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 import { AppException } from "src/common/exeptions/app.exeption";
 import { UserRespondDto } from "./dto/user.dto.respond";
+import { TimeLimit } from "src/constants/TimeLimit";
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -259,7 +260,7 @@ export class AuthService implements OnModuleInit {
         const accessToken = this.jwtAccessService.sign(newPayload.toJSON());
         const newRefreshToken = this.jwtRefreshService.sign(newPayload.toJSON());
         console.log("new", newRefreshToken);
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(Date.now() +TimeLimit["7Days"]);
         await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
         return { accessToken, newRefreshToken };
 
