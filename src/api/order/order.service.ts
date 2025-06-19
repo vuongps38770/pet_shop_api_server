@@ -2,7 +2,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { Order } from './entity/order.entity';
-import { OrderAdminListReqDto, OrderCreateReqDto, OrderListReqDto, OrderReqItem, CalculateOrderPriceDto } from './dto/order.req.dto';
+import { OrderAdminListReqDto, OrderCreateReqDto, OrderListReqDto, OrderReqItem, CalculateOrderPriceReqDto } from './dto/order.req.dto';
 import { OrderDetailService } from '../order-detail/order-detail.service';
 import { ProductVariantService } from '../product-variant/product-variant.service';
 import { AppException } from 'src/common/exeptions/app.exeption';
@@ -331,14 +331,14 @@ export class OrderService {
         return OrderMapper.toRespondDto(order);
     }
 
-    async calculateOrderPricePreview(dto: CalculateOrderPriceDto) {
+    async calculateOrderPricePreview(dto: CalculateOrderPriceReqDto) {
         let productTotal = 0;
         let discount = 0;
         for (const item of dto.orderItems) {
             const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity);
-            productTotal += itemData.promotionalPrice || 0;
+            productTotal += itemData.promotionalPrice *itemData.quantity || 0;
         }
-
+        // Giả sử có hàm tính giảm giá từ voucher
         if (dto.voucherCode) {
             discount = await this.getVoucherDiscount(dto.voucherCode, productTotal);
         }

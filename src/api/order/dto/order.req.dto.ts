@@ -91,7 +91,7 @@ export class OrderAdminListReqDto {
     sortOrder?: 'asc' | 'desc' = 'desc';
 }
 
-export class CalculateOrderPriceDto {
+export class CalculateOrderPriceReqDto {
     @IsNotEmpty()
     @IsArray()
     @ValidateNested({ each: true })

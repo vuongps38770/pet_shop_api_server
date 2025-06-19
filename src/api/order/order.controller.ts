@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Query, Param, Patch } from '@nestjs/common
 import { OrderService } from './order.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
-import { OrderCreateReqDto, OrderListReqDto, CalculateOrderPriceDto } from './dto/order.req.dto';
+import { OrderCreateReqDto, OrderListReqDto, CalculateOrderPriceReqDto } from './dto/order.req.dto';
 import { OrderListResDto, OrderRespondDto } from './dto/order.respond';
 
 @Controller('order')
@@ -32,7 +32,7 @@ export class OrderController {
   }
 
   @Post('calculate-price')
-  async calculateOrderPricePreview(@Body() dto: CalculateOrderPriceDto):Promise<PartialStandardResponse<any>> {
+  async calculateOrderPricePreview(@Body() dto: CalculateOrderPriceReqDto):Promise<PartialStandardResponse<any>> {
     const data = await this.orderService.calculateOrderPricePreview(dto);
     return { data };
   }
