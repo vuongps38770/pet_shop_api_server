@@ -110,9 +110,9 @@ export class OrderService {
         return 0;
     }
     private checkSumPrice(clientSumPrice: number, serverSumPrice: number) {
-        if (clientSumPrice != serverSumPrice) {
-            throw new AppException(['Sản phẩm đã thay dổi giá'], 409)
-        }
+        // if (clientSumPrice != serverSumPrice) {
+        //     throw new AppException(['Sản phẩm đã thay dổi giá'], 409)
+        // }
     }
 
 
