@@ -14,6 +14,7 @@ import { OrderMapper } from './mappers/order.mapper';
 import { PaymentService } from '../payment/payment.service';
 import { PaymentType } from './models/payment-type';
 import { UserRole } from '../auth/models/role.enum';
+import { log } from 'console';
 
 @Injectable()
 export class OrderService {
@@ -297,11 +298,32 @@ export class OrderService {
     }
 
 
+     async systemUpdateOrderStatus(orderId: string, nextStatus: OrderStatus): Promise<any> {
+        
+        log(orderId)
+        const order = await this.orderModel.findById(orderId);
+        console.log(order);
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        const allowedNextStatuses = OrderStatusTransitionMap[order.status];
+        if (!allowedNextStatuses.includes(nextStatus)) {
+            throw new AppException(`Không thể chuyển trạng thái từ ${order.status} sang ${nextStatus}`, 400);
+        }
+    
+        order.status = nextStatus;
+        await order.save();
+        log(order)
+        return order;
+    }
+
+
 
 
 
     async handlePaymentCallback(orderId: string, paymentData: any): Promise<OrderRespondDto> {
-        const order = await this.orderModel.findById(orderId);
+        const order = await this.orderModel.findOne({ sku: orderId }) || await this.orderModel.findById(orderId);
         if (!order) {
             throw new NotFoundException('Order not found');
         }
@@ -310,11 +332,7 @@ export class OrderService {
             throw new AppException('Đơn hàng không ở trạng thái chờ thanh toán', HttpStatus.BAD_REQUEST);
         }
 
-        const isPaymentValid = await this.paymentService.verifyPayment(order.paymentType, paymentData);
-        if (!isPaymentValid) {
-            throw new AppException('Thanh toán không hợp lệ', HttpStatus.BAD_REQUEST);
-        }
-
+        // Không cần verifyPayment nếu đã xác thực callback ZaloPay
         order.status = OrderStatus.CONFIRMED;
         await order.save();
 

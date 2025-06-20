@@ -1,26 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentType } from '../order/models/payment-type';
 import { Order } from '../order/entity/order.entity';
+import axios from 'axios';
+import * as crypto from 'crypto';
+import { OrderService } from '../order/order.service';
+import { OrderRespondDto } from '../order/dto/order.respond';
+import { log } from 'console';
+import { OrderStatus } from '../order/models/order-status';
+import { AppException } from 'src/common/exeptions/app.exeption';
 
 @Injectable()
 export class PaymentService {
     constructor(
         private readonly configService: ConfigService,
-    ) {}
+        @Inject(forwardRef(() => OrderService))
+        private readonly orderService: OrderService,
+    ) { }
 
-    async createPaymentUrl(order: Order, returnUrl: string): Promise<string> {
-        switch (order.paymentType) {
-            case PaymentType.MOMO:
-                return await this.createMomoPaymentUrl(order, returnUrl);
-            case PaymentType.VNPAY:
-                return await this.createVNPayPaymentUrl(order, returnUrl);
-            case PaymentType.ZALOPAY:
-                return await this.createZaloPayPaymentUrl(order, returnUrl);
-            default:
-                throw new Error('Phương thức thanh toán không được hỗ trợ');
-        }
-    }
+
 
     private async createMomoPaymentUrl(order: Order, returnUrl: string): Promise<string> {
         // TODO: Implement Momo payment integration
@@ -43,15 +41,72 @@ export class PaymentService {
         return '';
     }
 
-    private async createZaloPayPaymentUrl(order: Order, returnUrl: string): Promise<string> {
-        // TODO: Implement ZaloPay payment integration
-        const zalopayEndpoint = this.configService.get<string>('ZALOPAY_ENDPOINT');
-        const appId = this.configService.get<string>('ZALOPAY_APP_ID');
-        const key1 = this.configService.get<string>('ZALOPAY_KEY1');
-        const key2 = this.configService.get<string>('ZALOPAY_KEY2');
+    public async createZaloPayPaymentUrl(order: OrderRespondDto, returnUrl: string): Promise<string> {
+        const zalopayEndpoint = this.configService.get<string>('ZALOPAY_ENDPOINT') ?? 'https://sb-openapi.zalopay.vn/v2/create';
+        const appId = this.configService.get<string>('ZALOPAY_APP_ID') ?? '2554';
+        const key1 = this.configService.get<string>('ZALOPAY_KEY1') ?? 'sdngKKJmqEMzvh5QQcdD2A9XBSKUNaYn';
+        const appUser = order.userID;
+        const appTransId = this.generateAppTransId(order.sku);
+        const appTime = Date.now();
+        const amount = order.totalPrice;
+        const embedData = JSON.stringify({ order_id: order._id.toString(), });
 
-        // Implement ZaloPay payment logic here
-        return '';
+        const data = {
+            app_id: +appId,
+            app_user: appUser,
+            app_trans_id: appTransId,
+            app_time: appTime,
+            amount,
+            embed_data: embedData,
+            description: `Thanh toán đơn hàng ${order.sku}`,
+            bank_code: 'zalopayapp',
+            callback_url: this.configService.get<string>('ZALOPAY_CALLBACK_URL'),
+            item: JSON.stringify(order.orderDetailItems),
+        };
+
+        const macStr = [
+            data.app_id,
+            data.app_trans_id,
+            data.app_user,
+            data.amount,
+            data.app_time,
+            data.embed_data,
+            data.item,
+        ].join('|');
+
+        const mac = crypto.createHmac('sha256', key1).update(macStr).digest('hex');
+
+        const requestBody = {
+            ...data,
+            mac,
+        };
+        log(requestBody)
+        try {
+            const response = await axios.post(zalopayEndpoint, requestBody);
+            const resData = response.data;
+            log(resData)
+            if (resData.return_code !== 1) {
+                throw new Error(`ZaloPay error: ${resData.return_message}`);
+            }
+
+            return resData.order_url;
+        } catch (error) {
+            if (error?.response?.data) {
+                console.error('ZaloPay API error:', error.response.data);
+                throw new Error('ZaloPay: ' + JSON.stringify(error.response.data));
+            }
+            console.error('ZaloPay API error:', error.message);
+            throw new Error('Không thể tạo liên kết thanh toán ZaloPay');
+        }
+    }
+
+    private generateAppTransId(orderId: string): string {
+        const date = new Date();
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yy = String(date.getFullYear()).slice(2);
+        const rand = Math.floor(Math.random() * 100000);
+        return `${yy}${mm}${dd}_${rand}${orderId}`;
     }
 
     async verifyPayment(paymentType: PaymentType, paymentData: any): Promise<boolean> {
@@ -80,5 +135,40 @@ export class PaymentService {
     private async verifyZaloPayPayment(paymentData: any): Promise<boolean> {
         // TODO: Implement ZaloPay payment verification
         return false;
+    }
+
+    async handleZaloPayCallback(body: any) {
+        const key2 = this.configService.get<string>('ZALOPAY_KEY2');
+
+
+        const { type, mac, data } = body;
+
+        if (!key2) throw new AppException("env not found")
+        if (!this.verifyChecksum(data, key2, mac)) {
+            throw new Error('Invalid checksum');
+        }
+
+        const dataObj = JSON.parse(data);
+
+
+        log(dataObj)
+        const embedData = JSON.parse(dataObj.embed_data)
+        if (Number(type) === 1) {
+            console.log("payment ok", embedData);
+            await this.orderService.systemUpdateOrderStatus(embedData.order_id, OrderStatus.PAYMENT_SUCCESSFUL);
+        } else {
+            console.log("payment failed");
+
+        }
+    }
+
+    private verifyChecksum(payload: string, key2: string, mac: string): boolean {
+
+        const reqmac = crypto.createHmac('sha256', key2).update(payload).digest('hex');
+        return mac === reqmac;
+    }
+
+    public async getOrderById(orderId: string): Promise<OrderRespondDto | null> {
+        return this.orderService.findOrderById(orderId)
     }
 }

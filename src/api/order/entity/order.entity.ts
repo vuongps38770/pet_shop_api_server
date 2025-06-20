@@ -36,9 +36,6 @@ export class Order extends Document {
     @Prop()
     expiredPaymentDate?: Date;
 
-    @Prop()
-    paymentUrl?: string;
-
     @Prop({ required: true })
     sku: string;
 

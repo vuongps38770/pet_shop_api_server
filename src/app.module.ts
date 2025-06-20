@@ -72,7 +72,8 @@ import { PaymentModule } from './api/payment/payment.module';
     // e
     OrderModule,
     //PaymentModule
-    PaymentModule
+    PaymentModule,
+    
 
 
   ],
