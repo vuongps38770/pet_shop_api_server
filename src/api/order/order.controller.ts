@@ -4,6 +4,10 @@ import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 import { OrderCreateReqDto, OrderListReqDto, CalculateOrderPriceReqDto } from './dto/order.req.dto';
 import { OrderListResDto, OrderRespondDto } from './dto/order.respond';
+import { OrderStatus } from './models/order-status';
+import { CurrentUser } from 'src/decorators/curent-user.decorator';
+import { User } from '../auth/entity/user.entity';
+import { log } from 'console';
 
 @Controller('order')
 export class OrderController {
@@ -18,24 +22,32 @@ export class OrderController {
   }
 
   @Get('my')
-  async getMyOrder(@CurrentUserId() usId:string, @Query() dto:OrderListReqDto ): Promise<PartialStandardResponse<OrderListResDto>>{
-    const data = await this.orderService.getOrdersByUser(dto,usId)
-    return{data}
-  }
-
-  @Patch(':id/confirm')
-  async confirmOrder(
-    @Param('id') id: string
-  ): Promise<PartialStandardResponse<OrderRespondDto>> {
-    const data = await this.orderService.confirmOrder(id);
-    return { data };
+  async getMyOrder(@CurrentUserId() usId: string, @Query() dto: OrderListReqDto): Promise<PartialStandardResponse<OrderListResDto>> {
+    const data = await this.orderService.getOrdersByUser(dto, usId)
+    return { data }
   }
 
   @Post('calculate-price')
-  async calculateOrderPricePreview(@Body() dto: CalculateOrderPriceReqDto):Promise<PartialStandardResponse<any>> {
+  async calculateOrderPricePreview(@Body() dto: CalculateOrderPriceReqDto): Promise<PartialStandardResponse<any>> {
     const data = await this.orderService.calculateOrderPricePreview(dto);
     return { data };
   }
+
+
+  @Post(':id/status')
+  async updateOrderStatus(
+    @Param('id') orderId: string,
+    @Body('nextStatus') nextStatus: OrderStatus,
+    @CurrentUser() user: any
+  ): Promise<PartialStandardResponse<any>> {
+    log(user)
+    const data = await this.orderService.updateOrderStatus(orderId, nextStatus, user.sub, user.role);
+    return {
+      data
+    }
+  }
+
+
 
 
 }

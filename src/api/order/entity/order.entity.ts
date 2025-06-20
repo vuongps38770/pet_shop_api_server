@@ -39,11 +39,9 @@ export class Order extends Document {
     @Prop()
     paymentUrl?: string;
 
-    @Prop()
-    createdAt?: Date;
+    @Prop({ required: true })
+    sku: string;
 
-    @Prop()
-    updatedAt?: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

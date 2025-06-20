@@ -7,12 +7,13 @@ import { OrderDetailService } from '../order-detail/order-detail.service';
 import { ProductVariantService } from '../product-variant/product-variant.service';
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { TimeLimit } from 'src/constants/TimeLimit';
-import { OrderStatus } from './models/order-status';
+import { OrderStatus, OrderStatusPermissionMap, OrderStatusTransitionMap } from './models/order-status';
 import { OrderDetailResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
 import { Address } from '../adress/entity/address.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { PaymentService } from '../payment/payment.service';
 import { PaymentType } from './models/payment-type';
+import { UserRole } from '../auth/models/role.enum';
 
 @Injectable()
 export class OrderService {
@@ -34,7 +35,8 @@ export class OrderService {
             //tạo cái order mới nhưng ko create nó sẽ bị lỗi tạo 1 cái doc mới mà k có data
             const newOrder = new this.orderModel({
                 userID: usId,
-                paymentType: dto.paymentType
+                paymentType: dto.paymentType,
+                sku: this.generateOrderId().toString
             })
 
             //ktra dịchi
@@ -80,11 +82,6 @@ export class OrderService {
             newOrder.shippingFee = shippingFee
             newOrder.totalPrice = shippingFee + orderServerSumPrice
 
-
-
-
-
-
             if (dto.paymentType == 'COD') {
                 newOrder.status = OrderStatus.NEWORDER
             } else if (dto.paymentType == PaymentType.MOMO
@@ -94,7 +91,7 @@ export class OrderService {
                 newOrder.expiredPaymentDate = new Date(new Date().getTime() + TimeLimit['2Days'])
             } else {
 
-                throw new AppException('Thiếu returnUrl cho thanh toán online', HttpStatus.BAD_REQUEST);
+                throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);
 
             }
             await newOrder.save({ session })
@@ -122,7 +119,18 @@ export class OrderService {
         /**todo: thêm voucher */
     }
 
+    private generateOrderId(): string {
+        const now = new Date();
+        const y = now.getFullYear().toString().slice(2);
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const h = String(now.getHours()).padStart(2, '0');
+        const mi = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        const random = Math.floor(1000 + Math.random() * 9000);
 
+        return `${y}${m}${d}${h}${mi}${s}${random}`;
+    }
 
 
 
@@ -143,15 +151,6 @@ export class OrderService {
 
         return OrderMapper.toRespondDto(order)
     }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -214,11 +213,6 @@ export class OrderService {
 
 
 
-
-
-
-
-
     async getOrdersForAdmin(
         dto: OrderAdminListReqDto
     ): Promise<OrderListResDto> {
@@ -272,43 +266,39 @@ export class OrderService {
         };
     }
 
-    async updateOrder() {
 
-    }
 
-    async confirmOrder(orderId: string): Promise<OrderRespondDto> {
+
+
+    async updateOrderStatus(orderId: string, nextStatus: OrderStatus,userId: string, role?: UserRole): Promise<any> {
+        if (!role) throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
         const order = await this.orderModel.findById(orderId);
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-
-        // Kiểm tra trạng thái hiện tại
-        if (order.status === OrderStatus.CONFIRMED) {
-            throw new AppException('Đơn hàng đã được xác nhận trước đó', 400);
+        if (role === UserRole.USER && order.userID !== userId) {
+            throw new AppException('Bạn không thể thao tác với đơn hàng không thuộc về bạn', HttpStatus.FORBIDDEN);
         }
 
-        // Kiểm tra điều kiện chuyển trạng thái
-
-        //nếu là online thì bỏ mấy cái chưa thanh toán
-        if (
-            order.paymentType != PaymentType.COD
-        ) {
-            if (order.status !== OrderStatus.PAYMENT_SUCCESSFUL) {
-                throw new AppException('Đơn hàng online cần thanh toán trước khi xác nhận', 400);
-            }
-        } else if (order.status !== OrderStatus.NEWORDER) {
-            throw new AppException('Không thể xác nhận đơn hàng ở trạng thái này', 400);
+        const allowedNextStatuses = OrderStatusTransitionMap[order.status];
+        if (!allowedNextStatuses.includes(nextStatus)) {
+            throw new AppException(`Không thể chuyển trạng thái từ ${order.status} sang ${nextStatus}`, 400);
         }
 
-        // Cập nhật trạng thái
-        order.status = OrderStatus.CONFIRMED;
+
+        const allowedRoles = OrderStatusPermissionMap[nextStatus] || [];
+
+        if (!allowedRoles.includes(role)) {
+            throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
+        }
+        order.status = nextStatus;
         await order.save();
-
-        return OrderMapper.toRespondDto(order);
+        return order;
     }
 
 
-    
+
+
 
     async handlePaymentCallback(orderId: string, paymentData: any): Promise<OrderRespondDto> {
         const order = await this.orderModel.findById(orderId);
@@ -336,7 +326,7 @@ export class OrderService {
         let discount = 0;
         for (const item of dto.orderItems) {
             const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity);
-            productTotal += itemData.promotionalPrice *itemData.quantity || 0;
+            productTotal += itemData.promotionalPrice * itemData.quantity || 0;
         }
         // Giả sử có hàm tính giảm giá từ voucher
         if (dto.voucherCode) {
@@ -357,5 +347,4 @@ export class OrderService {
         // TODO: Thay bằng logic thực tế
         return 0;
     }
-
 }
