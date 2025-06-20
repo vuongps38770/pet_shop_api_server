@@ -332,7 +332,6 @@ export class OrderService {
             throw new AppException('Đơn hàng không ở trạng thái chờ thanh toán', HttpStatus.BAD_REQUEST);
         }
 
-        // Không cần verifyPayment nếu đã xác thực callback ZaloPay
         order.status = OrderStatus.CONFIRMED;
         await order.save();
 

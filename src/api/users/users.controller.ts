@@ -50,7 +50,6 @@ export class UsersController {
   }
 
 
-  @Roles(UserRole.ADMIN)
   @Get('get-all-users')
   async getAllUsers(@Body() page:PaginationDto):Promise<PartialStandardResponse<UserInfoRespondDto>>{
     const data = await this.usersService.getAllUser(page)
