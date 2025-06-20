@@ -28,6 +28,7 @@ export class OrderMapper {
             shippingFree: order.shippingFee,
             createdDate: order.createdDate,
             productPrice: order.productPrice,
+            sku:order.sku
         };
     }
 }

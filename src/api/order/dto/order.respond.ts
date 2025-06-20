@@ -22,7 +22,8 @@ export class OrderRespondDto {
     shippingFree: number
     productPrice: number
     totalPrice: number;
-    createdDate:Date
+    createdDate:Date;
+    sku:string
 }
 
 export class OrderDetailResDto {
