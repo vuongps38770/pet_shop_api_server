@@ -68,7 +68,7 @@ export class OrderService {
             for (let item of dto.orderItems) {
                 const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity)
                 const newItem = await this.orderDetailService.createOrderDetailAndGetOrderDetailId(itemData)
-                orderServerSumPrice += itemData.promotionalPrice || 0
+                orderServerSumPrice += itemData.promotionalPrice *itemData.quantity || 0
                 orderItemIds.push(newItem._id)
                 await this.productVariantService.decreaseStock(item.variantId, item.quantity);
             }
