@@ -26,9 +26,10 @@ export class OrderMapper {
             expiredDate: order.expiredPaymentDate,
             orderDetailItems: orderDetailItems,
             shippingFree: order.shippingFee,
-            createdDate: order.createdDate,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
             productPrice: order.productPrice,
-            sku:order.sku
+            sku: order.sku
         };
     }
 }
