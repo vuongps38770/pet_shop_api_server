@@ -37,7 +37,7 @@ export class OrderService {
             const newOrder = new this.orderModel({
                 userID: usId,
                 paymentType: dto.paymentType,
-                sku: this.generateOrderId().toString
+                sku: this.generateOrderId()
             })
 
             //ktra dịchi
