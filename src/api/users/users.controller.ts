@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UploadedFile, UseInterceptors, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { UserUpdateReqDto } from './dto/update-user.dto';
@@ -51,7 +51,7 @@ export class UsersController {
 
 
   @Get('get-all-users')
-  async getAllUsers(@Body() page:PaginationDto):Promise<PartialStandardResponse<UserInfoRespondDto>>{
+  async getAllUsers(@Query() page:PaginationDto):Promise<PartialStandardResponse<UserInfoRespondDto>>{
     const data = await this.usersService.getAllUser(page)
     return{
       data:data
