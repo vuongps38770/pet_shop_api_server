@@ -49,7 +49,7 @@ export class UsersController {
     }
   }
 
-
+  @Public()
   @Get('get-all-users')
   async getAllUsers(@Query() page:PaginationDto):Promise<PartialStandardResponse<UserInfoRespondDto>>{
     const data = await this.usersService.getAllUser(page)
