@@ -8,6 +8,7 @@ import { OrderStatus } from './models/order-status';
 import { CurrentUser } from 'src/decorators/curent-user.decorator';
 import { User } from '../auth/entity/user.entity';
 import { log } from 'console';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('order')
 export class OrderController {
@@ -24,6 +25,13 @@ export class OrderController {
   @Get('my')
   async getMyOrder(@CurrentUserId() usId: string, @Query() dto: OrderListReqDto): Promise<PartialStandardResponse<OrderListResDto>> {
     const data = await this.orderService.getOrdersByUser(dto, usId)
+    return { data }
+  }
+
+  @Public()
+  @Get('admin/get-orders')
+  async getOrders(@Query() dto: OrderListReqDto): Promise<PartialStandardResponse<OrderListResDto>> {
+    const data = await this.orderService.getOrdersForAdmin(dto)
     return { data }
   }
 
