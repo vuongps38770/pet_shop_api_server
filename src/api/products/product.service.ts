@@ -352,7 +352,6 @@ export class ProductService {
     }
 
     async editManyProductvariantPrice(productId: string, dto: UpdateProductVariantPriceDto[]): Promise<ProductRespondDto> {
-
         try {
             for (let item of dto) {
                 await this.variantService.editProductvariantPrice(item)
@@ -418,5 +417,10 @@ export class ProductService {
                 throw new AppException('Product not found', 404);
             }
         }
+    }
+
+
+    async updateProductStock(){
+        
     }
 }

@@ -29,6 +29,9 @@ export class ProductVariant {
 
     @Prop({type:Types.ObjectId, ref:"Product"})
     productId:Types.ObjectId
+
+    @Prop({type:[Types.ObjectId], ref:"StockHistory"})
+    logIds:Types.ObjectId[]
 }
 
 export const ProductVariantSchema = SchemaFactory.createForClass(ProductVariant)

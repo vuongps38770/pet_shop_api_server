@@ -24,6 +24,7 @@ import { OrderModule } from './api/order/order.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { OrderAutoCancelService } from './jobs/order-auto-cancel';
 import { PaymentModule } from './api/payment/payment.module';
+import { StockHistoryModule } from './api/stock-history/stock-history.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -73,6 +74,8 @@ import { PaymentModule } from './api/payment/payment.module';
     OrderModule,
     //PaymentModule
     PaymentModule,
+    //StockHistoryModule
+    StockHistoryModule
     
 
 

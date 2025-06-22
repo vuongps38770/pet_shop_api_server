@@ -7,6 +7,7 @@ import { ProductVariantService } from "./product-variant.service";
 import { VariantUnitModule } from "../variant-units/variant-unit.module";
 import { VariantGroupModule } from "../variant-group/variant-group.module";
 import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
+import { StockHistoryModule } from "../stock-history/stock-history.module";
 
 
 @Module({
@@ -18,6 +19,7 @@ import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
             },
 
         ]),
+        StockHistoryModule
         
     ],
     controllers: [ProductVariantController],
