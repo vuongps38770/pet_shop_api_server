@@ -3,7 +3,7 @@ import { OrderService } from './order.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 import { OrderCreateReqDto, OrderListReqDto, CalculateOrderPriceReqDto } from './dto/order.req.dto';
-import { OrderListResDto, OrderRespondDto } from './dto/order.respond';
+import { OrderCheckoutResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
 import { OrderStatus } from './models/order-status';
 import { CurrentUser } from 'src/decorators/curent-user.decorator';
 import { User } from '../auth/entity/user.entity';
@@ -15,7 +15,7 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) { }
 
   @Post('create-order')
-  async createOrder(@CurrentUserId() usId: string, @Body() dto: OrderCreateReqDto): Promise<PartialStandardResponse<OrderRespondDto>> {
+  async createOrder(@CurrentUserId() usId: string, @Body() dto: OrderCreateReqDto): Promise<PartialStandardResponse<OrderCheckoutResDto>> {
     const data = await this.orderService.createOrder(usId, dto)
     return {
       data

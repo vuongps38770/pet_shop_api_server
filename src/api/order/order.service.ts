@@ -8,13 +8,14 @@ import { ProductVariantService } from '../product-variant/product-variant.servic
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { TimeLimit } from 'src/constants/TimeLimit';
 import { OrderStatus, OrderStatusPermissionMap, OrderStatusTransitionMap } from './models/order-status';
-import { OrderDetailResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
+import { OrderCheckoutResDto, OrderDetailResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
 import { Address } from '../adress/entity/address.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { PaymentService } from '../payment/payment.service';
 import { PaymentType } from './models/payment-type';
 import { UserRole } from '../auth/models/role.enum';
 import { log } from 'console';
+import { PaymentResDto } from '../payment/dto/payment.res';
 
 @Injectable()
 export class OrderService {
@@ -28,7 +29,7 @@ export class OrderService {
         private readonly paymentService: PaymentService
     ) { }
 
-    async createOrder(usId: string, dto: OrderCreateReqDto): Promise<OrderRespondDto> {
+    async createOrder(usId: string, dto: OrderCreateReqDto): Promise<OrderCheckoutResDto> {
         const session = await this.connection.startSession()
         session.startTransaction()
         try {
@@ -68,7 +69,7 @@ export class OrderService {
             for (let item of dto.orderItems) {
                 const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity)
                 const newItem = await this.orderDetailService.createOrderDetailAndGetOrderDetailId(itemData)
-                orderServerSumPrice += itemData.promotionalPrice *itemData.quantity || 0
+                orderServerSumPrice += itemData.promotionalPrice * itemData.quantity || 0
                 orderItemIds.push(newItem._id)
                 await this.productVariantService.decreaseStock(item.variantId, item.quantity);
             }
@@ -88,16 +89,22 @@ export class OrderService {
             } else if (dto.paymentType == PaymentType.MOMO
                 || dto.paymentType == PaymentType.VNPAY
                 || dto.paymentType == PaymentType.ZALOPAY) {
-                newOrder.status = OrderStatus.WAIT_FOR_PAYMENT
-                newOrder.expiredPaymentDate = new Date(new Date().getTime() + TimeLimit['2Days'])
+                newOrder.status = OrderStatus.NEWORDER
+                newOrder.expiredPaymentDate = new Date(new Date().getTime() + TimeLimit['15mins'])
             } else {
-
                 throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);
-
             }
             await newOrder.save({ session })
             await session.commitTransaction()
-            return await this.findOrderById((newOrder._id as Types.ObjectId).toString())
+            let payment: PaymentResDto | undefined = undefined;
+            if (dto.paymentType == PaymentType.ZALOPAY) {
+                payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId);
+            }
+            return {
+                orderId: newOrder._id as string,
+                paymentMethod: newOrder.paymentType,
+                payment
+            }
         } catch (error) {
             await session.abortTransaction();
             throw error;
@@ -139,7 +146,7 @@ export class OrderService {
 
 
 
-    async findOrderById(orderId: string): Promise<OrderRespondDto> {
+    async findOrderById(orderId: string | Types.ObjectId): Promise<OrderRespondDto> {
         const order = await this.orderModel.findById(orderId)
             .populate({
                 path: 'orderDetailIds',
@@ -271,7 +278,7 @@ export class OrderService {
 
 
 
-    async updateOrderStatus(orderId: string, nextStatus: OrderStatus,userId: string, role?: UserRole): Promise<any> {
+    async updateOrderStatus(orderId: string, nextStatus: OrderStatus, userId: string, role?: UserRole): Promise<any> {
         if (!role) throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
         const order = await this.orderModel.findById(orderId);
         if (!order) {
@@ -298,8 +305,8 @@ export class OrderService {
     }
 
 
-     async systemUpdateOrderStatus(orderId: string, nextStatus: OrderStatus): Promise<any> {
-        
+    async systemUpdateOrderStatus(orderId: string | Types.ObjectId, nextStatus: OrderStatus): Promise<any> {
+
         log(orderId)
         const order = await this.orderModel.findById(orderId);
         console.log(order);
@@ -311,7 +318,7 @@ export class OrderService {
         if (!allowedNextStatuses.includes(nextStatus)) {
             throw new AppException(`Không thể chuyển trạng thái từ ${order.status} sang ${nextStatus}`, 400);
         }
-    
+
         order.status = nextStatus;
         await order.save();
         log(order)

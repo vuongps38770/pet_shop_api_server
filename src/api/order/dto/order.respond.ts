@@ -48,3 +48,10 @@ export class OrderListResDto {
     hasNext: boolean;
     hasPrevious: boolean;
 }
+
+
+export type OrderCheckoutResDto={
+    orderId: string,
+    paymentMethod:string, 
+    payment?: any
+}
