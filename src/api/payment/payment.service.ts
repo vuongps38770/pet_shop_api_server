@@ -165,11 +165,7 @@ export class PaymentService {
                 zp_trans_token: resData.zp_trans_token
             };
         } catch (error) {
-            if (error?.response?.data) {
-                console.error('ZaloPay API error:', error.response.data);
-                throw new Error('ZaloPay: ' + JSON.stringify(error.response.data));
-            }
-            console.error('ZaloPay API error:', error.message);
+            console.error('ZaloPay API error:', error);
             throw new AppException('Không tạo được giao dịch ZaloPay', HttpStatus.BAD_GATEWAY);
         }
     }
