@@ -97,10 +97,10 @@ export class OrderService {
             await newOrder.save({ session })
             let payment: PaymentResDto | undefined = undefined;
             if (dto.paymentType == PaymentType.ZALOPAY) {
-                payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId);
+                payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId,session);
             }
             await session.commitTransaction()
-            
+
             return {
                 orderId: newOrder._id as string,
                 paymentMethod: newOrder.paymentType,
@@ -160,9 +160,22 @@ export class OrderService {
 
         return OrderMapper.toRespondDto(order)
     }
+    
 
+    async findOrderByIdWidthSession(orderId: string | Types.ObjectId,session:ClientSession): Promise<OrderRespondDto> {
+        const order = await this.orderModel.findById(orderId)
+            .populate({
+                path: 'orderDetailIds',
+                model: 'OrderDetail',
+            })
+            .session(session)
+            .exec();
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
 
-
+        return OrderMapper.toRespondDto(order)
+    }
 
 
     async getOrdersByUser(
@@ -371,5 +384,11 @@ export class OrderService {
     private async getVoucherDiscount(voucherCode: string, productTotal: number): Promise<number> {
         // TODO: Thay bằng logic thực tế
         return 0;
+    }
+
+
+
+    async findByIdAndDelete(order_id: Types.ObjectId | string) {
+        await this.orderModel.findByIdAndDelete(order_id)
     }
 }

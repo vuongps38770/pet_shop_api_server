@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentType } from '../order/models/payment-type';
 import { Order } from '../order/entity/order.entity';
@@ -9,7 +9,7 @@ import { OrderRespondDto } from '../order/dto/order.respond';
 import { log } from 'console';
 import { OrderStatus } from '../order/models/order-status';
 import { AppException } from 'src/common/exeptions/app.exeption';
-import { Types } from 'mongoose';
+import { ClientSession, Types } from 'mongoose';
 import { PaymentResDto } from './dto/payment.res';
 import qs from 'qs';
 
@@ -102,8 +102,8 @@ export class PaymentService {
             throw new Error('Không thể tạo liên kết thanh toán ZaloPay');
         }
     }
-    public async createZalopayTransToken(orderId: string | Types.ObjectId): Promise<PaymentResDto> {
-        const order = await this.orderService.findOrderById(orderId)
+    public async createZalopayTransToken(orderId: string | Types.ObjectId,session:ClientSession): Promise<PaymentResDto> {
+        const order = await this.orderService.findOrderByIdWidthSession(orderId,session)
         const zalopayEndpoint = this.configService.get<string>('ZALOPAY_ENDPOINT') ?? 'https://sb-openapi.zalopay.vn/v2/create';
         const appId = this.configService.get<string>('ZALOPAY_APP_ID') ?? '2553';
         const key = this.configService.get<string>('ZALOPAY_MOBILE_KEY') ?? 'PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL';
@@ -160,7 +160,6 @@ export class PaymentService {
             if (resData.return_code !== 1) {
                 throw new Error(`ZaloPay error: ${resData.return_message}`);
             }
-            await this.orderService.systemUpdateOrderStatus(orderId, OrderStatus.WAIT_FOR_PAYMENT)
             return {
                 app_trans_id: data.app_trans_id,
                 zp_trans_token: resData.zp_trans_token
@@ -171,7 +170,7 @@ export class PaymentService {
                 throw new Error('ZaloPay: ' + JSON.stringify(error.response.data));
             }
             console.error('ZaloPay API error:', error.message);
-            throw new Error('Không thể tạo liên kết thanh toán ZaloPay');
+            throw new AppException('Không tạo được giao dịch ZaloPay', HttpStatus.BAD_GATEWAY);
         }
     }
     private generateAppTransId(orderId: string): string {
@@ -245,4 +244,6 @@ export class PaymentService {
     public async getOrderById(orderId: string): Promise<OrderRespondDto | null> {
         return this.orderService.findOrderById(orderId)
     }
+
+
 }
