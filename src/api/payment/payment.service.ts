@@ -11,6 +11,7 @@ import { OrderStatus } from '../order/models/order-status';
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { Types } from 'mongoose';
 import { PaymentResDto } from './dto/payment.res';
+import qs from 'qs';
 
 @Injectable()
 export class PaymentService {
@@ -101,64 +102,68 @@ export class PaymentService {
             throw new Error('Không thể tạo liên kết thanh toán ZaloPay');
         }
     }
-    public async createZalopayTransToken(orderId: string|Types.ObjectId): Promise<PaymentResDto> {
+    public async createZalopayTransToken(orderId: string | Types.ObjectId): Promise<PaymentResDto> {
         const order = await this.orderService.findOrderById(orderId)
         const zalopayEndpoint = this.configService.get<string>('ZALOPAY_ENDPOINT') ?? 'https://sb-openapi.zalopay.vn/v2/create';
-        const appId = this.configService.get<string>('ZALOPAY_APP_ID') ?? '2554';
-        const key1 = this.configService.get<string>('ZALOPAY_KEY1') ?? 'sdngKKJmqEMzvh5QQcdD2A9XBSKUNaYn';
+        const appId = this.configService.get<string>('ZALOPAY_APP_ID') ?? '2553';
+        const key = this.configService.get<string>('ZALOPAY_MOBILE_KEY') ?? 'PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL';
         const appUser = order.userID;
         const appTransId = this.generateAppTransId(order.sku);
         const appTime = Date.now();
         const amount = order.totalPrice;
         const embedData = JSON.stringify({ order_id: order._id.toString(), });
+        const item = JSON.stringify(order.orderDetailItems)
 
-        const data = {
-            app_id: +appId,
-            app_user: appUser,
-            app_trans_id: appTransId,
-            app_time: appTime,
-            amount,
-            embed_data: embedData,
-            description: `Thanh toán đơn hàng ${order.sku}`,
-            bank_code: 'zalopayapp',
-            callback_url: this.configService.get<string>('ZALOPAY_CALLBACK_URL'),
-            item: JSON.stringify(order.orderDetailItems),
-        };
 
 
 
 
         const macStr = [
-            data.app_id,
-            data.app_trans_id,
-            data.app_user,
-            data.amount,
-            data.app_time,
-            data.embed_data,
-            data.item,
+            appId,
+            appTransId,
+            appUser,
+            amount,
+            appTime,
+            embedData,
+            item
         ].join('|');
 
+        const mac = crypto.createHmac('sha256', key).update(macStr).digest('hex');
 
-        const mac = crypto.createHmac('sha256', key1).update(macStr).digest('hex');
 
-        const requestBody = {
-            ...data,
-            mac,
+        const data = {
+            'app_id': +appId,
+            'app_user': appUser,
+            'app_time': appTime,
+            'amount': amount,
+            'app_trans_id': appTransId,
+            'embed_data': embedData,
+            'item': item,
+            'description': `Thanh toán đơn hàng ${order.sku}`,
+            'mac': mac
         };
 
 
-        log(requestBody)
+
         try {
-            const response = await axios.post(zalopayEndpoint, requestBody);
+            const response = await axios.post(
+                zalopayEndpoint,
+                qs.stringify(data),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                    }
+                }
+            );
             const resData = response.data;
             log(resData)
             if (resData.return_code !== 1) {
                 throw new Error(`ZaloPay error: ${resData.return_message}`);
             }
-            await this.orderService.systemUpdateOrderStatus(orderId,OrderStatus.WAIT_FOR_PAYMENT)
+            await this.orderService.systemUpdateOrderStatus(orderId, OrderStatus.WAIT_FOR_PAYMENT)
             return {
-                app_trans_id:data.app_trans_id,
-                zp_trans_token:resData.zp_trans_token
+                app_trans_id: data.app_trans_id,
+                zp_trans_token: resData.zp_trans_token
             };
         } catch (error) {
             if (error?.response?.data) {

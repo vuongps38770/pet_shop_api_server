@@ -95,11 +95,12 @@ export class OrderService {
                 throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);
             }
             await newOrder.save({ session })
-            await session.commitTransaction()
             let payment: PaymentResDto | undefined = undefined;
             if (dto.paymentType == PaymentType.ZALOPAY) {
                 payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId);
             }
+            await session.commitTransaction()
+            
             return {
                 orderId: newOrder._id as string,
                 paymentMethod: newOrder.paymentType,
