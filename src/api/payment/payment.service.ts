@@ -102,8 +102,8 @@ export class PaymentService {
             throw new Error('Không thể tạo liên kết thanh toán ZaloPay');
         }
     }
-    public async createZalopayTransToken(orderId: string | Types.ObjectId,session:ClientSession): Promise<PaymentResDto> {
-        const order = await this.orderService.findOrderByIdWidthSession(orderId,session)
+    public async createZalopayTransToken(orderId: string | Types.ObjectId, session: ClientSession): Promise<PaymentResDto> {
+        const order = await this.orderService.findOrderByIdWidthSession(orderId, session)
         const zalopayEndpoint = this.configService.get<string>('ZALOPAY_ENDPOINT') ?? 'https://sb-openapi.zalopay.vn/v2/create';
         const appId = this.configService.get<string>('ZALOPAY_APP_ID') ?? '2553';
         const key = this.configService.get<string>('ZALOPAY_MOBILE_KEY') ?? 'PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL';
@@ -146,28 +146,48 @@ export class PaymentService {
 
 
         try {
-            const response = await axios.post(
-                zalopayEndpoint,
-                qs.stringify(data),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-                    }
-                }
-            );
-            const resData = response.data;
-            log(resData)
-            if (resData.return_code !== 1) {
-                throw new Error(`ZaloPay error: ${resData.return_message}`);
+            // const response = await axios.post(
+            //     zalopayEndpoint,
+            //     qs.stringify(data),
+            //     {
+            //         headers: {
+            //             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            //         }
+            //     }
+            // );
+            // const resData = response.data;
+            // log(resData)
+            // if (resData.return_code !== 1) {
+            //     throw new Error(`ZaloPay error: ${resData.return_message}`);
+            // }
+
+
+            let formBody: string[] = [];
+            for (let i in data) {
+                var encodedKey = encodeURIComponent(i);
+                var encodedValue = encodeURIComponent(data[i]);
+                formBody.push(encodedKey + "=" + encodedValue);
             }
+            const formBodyString = formBody.join("&");
+            let res = await fetch('https://sb-openapi.zalopay.vn/v2/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                },
+                body: formBodyString
+            });
+
+            const resData = await res.json();
+            log(resData)
             return {
-                app_trans_id: data.app_trans_id,
+                app_trans_id: resData.app_trans_id,
                 zp_trans_token: resData.zp_trans_token
             };
         } catch (error) {
             console.error('ZaloPay API error:', error);
             throw new AppException('Không tạo được giao dịch ZaloPay', HttpStatus.BAD_GATEWAY);
         }
+
     }
     private generateAppTransId(orderId: string): string {
         const date = new Date();
