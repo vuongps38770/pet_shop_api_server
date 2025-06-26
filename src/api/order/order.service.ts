@@ -89,7 +89,7 @@ export class OrderService {
             } else if (dto.paymentType == PaymentType.MOMO
                 || dto.paymentType == PaymentType.VNPAY
                 || dto.paymentType == PaymentType.ZALOPAY) {
-                newOrder.status = OrderStatus.NEWORDER
+                newOrder.status = OrderStatus.WAIT_FOR_PAYMENT
                 newOrder.expiredPaymentDate = new Date(new Date().getTime() + TimeLimit['15mins'])
             } else {
                 throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);

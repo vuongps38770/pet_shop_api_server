@@ -6,7 +6,7 @@ import { PaymentType } from '../models/payment-type';
 
 @Schema({ timestamps: true })
 export class Order extends Document {
-    @Prop({ required: true })
+    @Prop({ required: true,ref:"User" })
     userID: string;
 
     @Prop({ required: true })
@@ -26,6 +26,9 @@ export class Order extends Document {
 
     @Prop({ type: String, enum: PaymentType, required: true })
     paymentType: PaymentType;
+
+    @Prop({type:[Types.ObjectId], ref:"Payment"})
+    paymentIds:Types.ObjectId[]
 
     @Prop({ type: String, enum: OrderStatus, required: true })
     status: OrderStatus;

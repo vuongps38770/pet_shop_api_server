@@ -54,4 +54,4 @@ export type OrderCheckoutResDto={
     orderId: string,
     paymentMethod:string, 
     payment?: any
-}
+}   
