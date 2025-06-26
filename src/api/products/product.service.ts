@@ -175,7 +175,6 @@ export class ProductService {
                         path: 'variantGroupId',
                         model: 'VariantGroup'
                     }
-
                 }
             })
             .populate('categories_ids')
