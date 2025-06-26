@@ -25,6 +25,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { OrderAutoCancelService } from './jobs/order-auto-cancel';
 import { PaymentModule } from './api/payment/payment.module';
 import { StockHistoryModule } from './api/stock-history/stock-history.module';
+import { PaymentAutoCheckService } from './jobs/payment-auto-check';
+import { FirebaseAdminModule } from './firebase-admin/firebase-admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -75,7 +77,8 @@ import { StockHistoryModule } from './api/stock-history/stock-history.module';
     //PaymentModule
     PaymentModule,
     //StockHistoryModule
-    StockHistoryModule
+    StockHistoryModule,
+    FirebaseAdminModule
     
 
 
@@ -87,7 +90,8 @@ import { StockHistoryModule } from './api/stock-history/stock-history.module';
       provide:APP_GUARD,
       useClass: AuthGuard, 
     },
-    OrderAutoCancelService
+    OrderAutoCancelService,
+    PaymentAutoCheckService
   ],
   
 })
