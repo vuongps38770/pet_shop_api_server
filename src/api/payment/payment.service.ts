@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, HttpStatus } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentType } from '../order/models/payment-type';
 import { Order } from '../order/entity/order.entity';
@@ -9,9 +9,13 @@ import { OrderRespondDto } from '../order/dto/order.respond';
 import { log } from 'console';
 import { OrderStatus } from '../order/models/order-status';
 import { AppException } from 'src/common/exeptions/app.exeption';
-import { ClientSession, Types } from 'mongoose';
-import { PaymentResDto } from './dto/payment.res';
+import { ClientSession, Model, Types } from 'mongoose';
+import { PaymentResDto, PaymentStatusResDto } from './dto/payment.res';
 import qs from 'qs';
+import { InjectModel } from '@nestjs/mongoose';
+import { Payment } from './entity/payment.entity';
+import { TimeLimit } from 'src/constants/TimeLimit';
+import { PaymentPurpose } from './models/payment-purpose.enum';
 
 @Injectable()
 export class PaymentService {
@@ -19,9 +23,11 @@ export class PaymentService {
         private readonly configService: ConfigService,
         @Inject(forwardRef(() => OrderService))
         private readonly orderService: OrderService,
+        @InjectModel("Payment") private readonly paymentModel: Model<Payment>,
+
     ) { }
 
-
+    private readonly logger = new Logger(PaymentService.name)
 
     private async createMomoPaymentUrl(order: Order, returnUrl: string): Promise<string> {
         // TODO: Implement Momo payment integration
@@ -114,10 +120,6 @@ export class PaymentService {
         const embedData = JSON.stringify({ order_id: order._id.toString(), });
         const item = JSON.stringify(order.orderDetailItems)
 
-
-
-
-
         const macStr = [
             appId,
             appTransId,
@@ -129,7 +131,6 @@ export class PaymentService {
         ].join('|');
 
         const mac = crypto.createHmac('sha256', key).update(macStr).digest('hex');
-
 
         const data = {
             'app_id': +appId,
@@ -146,22 +147,6 @@ export class PaymentService {
 
 
         try {
-            // const response = await axios.post(
-            //     zalopayEndpoint,
-            //     qs.stringify(data),
-            //     {
-            //         headers: {
-            //             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-            //         }
-            //     }
-            // );
-            // const resData = response.data;
-            // log(resData)
-            // if (resData.return_code !== 1) {
-            //     throw new Error(`ZaloPay error: ${resData.return_message}`);
-            // }
-
-
             let formBody: string[] = [];
             for (let i in data) {
                 var encodedKey = encodeURIComponent(i);
@@ -169,7 +154,7 @@ export class PaymentService {
                 formBody.push(encodedKey + "=" + encodedValue);
             }
             const formBodyString = formBody.join("&");
-            let res = await fetch('https://sb-openapi.zalopay.vn/v2/create', {
+            let res = await fetch(zalopayEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
@@ -179,15 +164,26 @@ export class PaymentService {
 
             const resData = await res.json();
             log(resData)
+            const payment = new this.paymentModel({
+                amount: amount,
+                orderId: new Types.ObjectId(order._id),
+                provider: PaymentType.ZALOPAY,
+                status: 'PENDING',
+                gateway_code: resData.zp_trans_token,
+                expiredAt: order.expiredDate || new Date(Date.now() + TimeLimit['15mins']),
+                paymentPurpose: PaymentPurpose.PAY,
+                transactionId: appTransId,
+            })
+            await payment.save()
             return {
-                app_trans_id: resData.app_trans_id,
-                zp_trans_token: resData.zp_trans_token
+                transactionId: resData.app_trans_id,
+                gateway_code: resData.zp_trans_token,
+                _id:payment._id.toString()
             };
         } catch (error) {
             console.error('ZaloPay API error:', error);
             throw new AppException('Không tạo được giao dịch ZaloPay', HttpStatus.BAD_GATEWAY);
         }
-
     }
     private generateAppTransId(orderId: string): string {
         const date = new Date();
@@ -260,6 +256,95 @@ export class PaymentService {
     public async getOrderById(orderId: string): Promise<OrderRespondDto | null> {
         return this.orderService.findOrderById(orderId)
     }
+    async getPaymentStatus(paymentId: string | Types.ObjectId){
+        const payment = await this.paymentModel.findById(paymentId)
+        if (!payment) throw new AppException("Không tìm thây sgiao dịch")
+        if(payment.provider=='ZALOPAY'){
+            return await this.getZalopayPaymentStatus(paymentId)
+        }else{
+            throw new AppException("Đơn hàng hiện ko thể truy cập")
+        }
+    }
+    //1: thành công
+    //2: thaats biaj
+    //3: pending
+    //4: het hanj
+    async getZalopayPaymentStatus(paymentId: string | Types.ObjectId): Promise<PaymentStatusResDto> {
+        const payment = await this.paymentModel.findById(paymentId)
+        if (!payment) throw new AppException("Không tìm thây sgiao dịch")
+        if (payment.status == 'SUCCESS') {
+            return {
+                return_code: 1
+            }
+        }
+        if (payment.expiredAt && payment.expiredAt.getTime() < Date.now()) {
+            if (payment.status == 'PENDING') {
+                payment.status = 'EXPIRED'
+                await payment.save()
+            }
+
+            return {
+                return_code: 4
+            }
+        }
+        const config = {
+            refundEndpoint: this.configService.getOrThrow("ZALOPAY_REFUND_ENDPOINT"),
+            app_id: this.configService.getOrThrow("ZALOPAY_APP_ID"),
+            key1: this.configService.getOrThrow("ZALOPAY_MOBILE_KEY")
+        }
+        let macStr = config.app_id + "|" + payment.transactionId + "|" + config.key1
+        let mac = crypto.createHmac('sha256', config.key1).update(macStr).digest('hex')
 
 
+        const body = {
+            app_id: +config.app_id,
+            app_trans_id: payment.transactionId,
+            mac
+        }
+        const res = await axios.post(config.refundEndpoint, body)
+        const {
+            return_code,
+            return_message,
+            sub_return_code,
+            sub_return_message,
+            is_processing,
+            amount,
+            discount_amount,
+            zp_trans_id
+        } = res.data
+
+        log(res.data)
+        if (return_code == 2) {
+            this.logger.debug(`Không thể truy vấn trạng thái, sub_return_code:${sub_return_code}, sub_return_message:${sub_return_message}`, PaymentService.name)
+            throw new Error("lỗi hệ thống")
+        } else if (return_code == 1) {
+            payment.amount = amount,
+                payment.discount_amount = discount_amount,
+                payment.status = 'SUCCESS'
+            await payment.save()
+            return {
+                return_code
+            }
+        }
+        else if (return_code == 3) {
+            // todo:giao đang thực hiện
+            if (is_processing) {
+                //đơn hàng đang xử lý
+            } else {
+
+            }
+            return {
+                return_code
+            }
+        }
+        else throw new Error("Lỗi, không hể truy suất trạng thái đơn hàng!")
+    }
+
+    async findCurentPendingPayments() {
+        return await this.paymentModel.find({
+            status: 'PENDING',
+            createdAt: { $gt: new Date(Date.now() - 1000 * 60 * 30) },
+        });
+    }
 }
+

@@ -1,9 +1,10 @@
-import { Controller, Post, Req, Res, Body } from '@nestjs/common';
+import { Controller, Post, Req, Res, Body, Get, Param } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { RawResponse } from 'src/decorators/raw.decorator';
 import { Public } from 'src/decorators/public.decorator';
 import { log } from 'console';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
+import { PaymentStatusResDto } from './dto/payment.res';
 
 @Controller('payment')
 export class PaymentController {
@@ -14,7 +15,6 @@ export class PaymentController {
   @Post('zalopay-callback')
   @RawResponse()
   async zaloPayCallback(@Body() body: any) {
-    log(body)
     return this.paymentService.handleZaloPayCallback(body);
   }
 
@@ -27,4 +27,15 @@ export class PaymentController {
       data: paymentUrl
     };
   }
+
+  @Get('payment-status')
+  async getZalopayStatus(@Param('paymentId') paymentId:string):Promise<PartialStandardResponse<PaymentStatusResDto>> {
+    const data = await this.paymentService.getPaymentStatus(paymentId)
+    return{
+      data
+    }
+  }
+
+
+  
 }
