@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Put, Param, Delete, Get, Query } from '@nestjs/common';
 import { RatingService } from './rating.service';
-import { CreateRatingDto, UpdateRatingDto } from './dto/rating-req.dto';
+import { CreateRatingDto, GetProductReviewsQuery, UpdateRatingDto } from './dto/rating-req.dto';
 import { CurrentUser } from 'src/decorators/curent-user.decorator';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
@@ -45,4 +45,26 @@ export class RatingController {
   async getById(@Param('id') id: string) {
     return this.ratingService.getById(id);
   }
+
+  @Post('rate-post')
+  async ratePost(@CurrentUserId() usId:string,@Body("action") action:'LIKE'|'DISLIKE',@Body("ratingId") ratingId:string){
+    return this.ratingService.ratePost(usId,action,ratingId)
+  }
+
+  @Get()
+  async getProductReviews(
+    @Query() query: GetProductReviewsQuery,
+    @CurrentUserId() userId: string
+  ):Promise<PartialStandardResponse<any>> {
+    const reviews = await this.ratingService.getReviewsByProduct(
+      query.productId,
+      query.type,
+      userId,
+      query.page,
+      query.limit
+    );
+
+    return { data: reviews };
+  }
+
 }

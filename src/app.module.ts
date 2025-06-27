@@ -79,6 +79,7 @@ import { FirebaseAdminModule } from './firebase-admin/firebase-admin.module';
     //StockHistoryModule
     StockHistoryModule,
     FirebaseAdminModule
+    RatingModule,
     
 
 
