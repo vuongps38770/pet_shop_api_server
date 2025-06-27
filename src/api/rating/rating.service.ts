@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Review } from './entity/rating.entity';
 import { CreateRatingDto, UpdateRatingDto } from './dto/rating-req.dto';
+import { RatingResDto } from './dto/rating-res.dto';
 
 @Injectable()
 export class RatingService {
@@ -32,7 +33,7 @@ export class RatingService {
     return this.reviewModel.findByIdAndDelete(id);
   }
 
-  async getAllByProductVariant(product_variant_id: string) {
+  async getAllByProductVariant(product_variant_id: string):Promise<RatingResDto[]> {
     return this.reviewModel.find({ product_variant_id: new Types.ObjectId(product_variant_id) });
   }
 

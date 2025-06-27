@@ -22,11 +22,13 @@ export class ProductVariantController {
         return 'Welcome to the Pet Shop API Products';
     }
 
+    @Public()
     @Get('test')
     async get(@Body() body: { variantId: string, quantity: number }) {
         await this.productVariantService.getOrderDetailByOrderReqItem(body.variantId, body.quantity)
     }
     
+    @Public()
     @Get('by-product/:productId/with-stock-history')
     async getVariantsWithStockHistory(@Param('productId') productId: string): Promise<PartialStandardResponse<VariantWithStockHistoryDto[]>> {
         const data = await this.productVariantService.getVariantsWithStockHistoryByProductId(productId);
@@ -36,6 +38,7 @@ export class ProductVariantController {
         };
     }
 
+    @Public()
     @Post('increase-stock/:variantId')
     async increaseStock(
         @Param('variantId') variantId: string,
@@ -54,6 +57,7 @@ export class ProductVariantController {
         };
     }
 
+    @Public()
     @Post('decrease-stock/:variantId')
     async decreaseStock(
         @Param('variantId') variantId: string,
