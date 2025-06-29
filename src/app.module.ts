@@ -32,6 +32,7 @@ import { redisProvider } from './redis/redis.provider';
 import { RedisModule } from './redis/redis.module';
 import { FcmTokenModule } from './api/fcm-token/fcm-token.module';
 import { NotificationModule } from './api/notification/notification.module';
+import { BroadcastCronService } from './jobs/broadcast-queue';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -100,7 +101,8 @@ import { NotificationModule } from './api/notification/notification.module';
     },
     OrderAutoCancelService,
     PaymentAutoCheckService,
-    redisProvider
+    redisProvider,
+    BroadcastCronService
   ],
   
 })
