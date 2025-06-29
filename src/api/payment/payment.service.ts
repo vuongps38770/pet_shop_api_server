@@ -277,6 +277,11 @@ export class PaymentService {
                 return_code: 1
             }
         }
+        if (payment.status == 'EXPIRED') {
+            return {
+                return_code: 4
+            }
+        }
         if (payment.expiredAt && payment.expiredAt.getTime() < Date.now()) {
             if (payment.status == 'PENDING') {
                 payment.status = 'EXPIRED'
