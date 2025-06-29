@@ -174,7 +174,10 @@ export class PaymentService {
                 paymentPurpose: PaymentPurpose.PAY,
                 transactionId: appTransId,
             })
-            await payment.save()
+
+            await payment.save({session:session})
+            await this.orderService.saveToPaymentIdsWithSession(order._id,payment._id,session)
+
             return {
                 transactionId: resData.app_trans_id,
                 gateway_code: resData.zp_trans_token,
@@ -277,7 +280,7 @@ export class PaymentService {
                 return_code: 1
             }
         }
-        if (payment.status == 'EXPIRED') {
+        if (payment.status == 'EXPIRED' || (payment.expiredAt && payment.expiredAt.getTime() < Date.now())) {
             return {
                 return_code: 4
             }
@@ -350,6 +353,21 @@ export class PaymentService {
             status: 'PENDING',
             createdAt: { $gt: new Date(Date.now() - 1000 * 60 * 30) },
         });
+    }
+
+    //999: hết hạn hoặc ko thấy
+    //555: vẫn còn hiệu lực
+    async getPaymentByOrderId(orderId:string){
+        const data = await this.paymentModel.findOne({orderId:new Types.ObjectId(orderId),paymentPurpose:PaymentPurpose.PAY,status:"PENDING"})
+        if(!data){
+            return{
+                code:999
+            }
+        }
+        return{
+            code:555,
+            payment:data
+        }
     }
 }
 

@@ -36,6 +36,13 @@ export class PaymentController {
     }
   }
 
+  @Get('get-available-payment/by-order/:orderId')
+  async getPaymentByOrderId(@Param("orderId") orderId:string):Promise<PartialStandardResponse<any>> {
+    const data = await this.paymentService.getPaymentByOrderId(orderId)
+    return{
+      data
+    }
+  }
 
   
 }
