@@ -18,6 +18,8 @@ export class RefreshToken {
     ipAddress: string;
     @Prop({ required: true })
     userAgent: string;
+    @Prop()
+    fcmToken:string
 }
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);

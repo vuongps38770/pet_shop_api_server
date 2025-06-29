@@ -27,7 +27,7 @@ import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity"
             useClass: RefreshTokenService
         }
     ],
-    exports: [AuthService],
+    exports: [AuthService,MongooseModule],
     imports: [
         MongooseModule.forFeature([
             {
