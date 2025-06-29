@@ -60,8 +60,15 @@ export const OrderStatusPermissionMap: Record<OrderStatus, (UserRole)[]> = {
 //    ↓
 // RECEIVED
 
-
-
+// NEWORDER
+//    ↓
+//CONFIRMED                     
+//    ↓                     
+// PROCESSING              
+//    ↓                     
+// SHIPPED              
+//    ↓
+// DELIVERED
 
 
 
