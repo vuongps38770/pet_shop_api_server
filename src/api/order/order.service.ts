@@ -176,7 +176,9 @@ export class OrderService {
 
         return OrderMapper.toRespondDto(order)
     }
-
+    async saveToPaymentIdsWithSession(orderId:string|Types.ObjectId,paymentId:string|Types.ObjectId,session:ClientSession){
+        await this.orderModel.findByIdAndUpdate(orderId,{$addToSet:{paymentIds:paymentId}},{session})
+    }
 
     async getOrdersByUser(
         dto: OrderListReqDto,
@@ -186,8 +188,8 @@ export class OrderService {
             statuses,
             page = 1,
             limit = 10,
-            sortBy = 'createdDate',
-            sortOrder = 'desc',
+            sortBy = 'createdAt',
+            sortOrder = 'acs',
         } = dto;
 
         let filter: any = { userID: userId };
@@ -242,7 +244,7 @@ export class OrderService {
             statuses,
             page = 1,
             limit = 10,
-            sortBy = 'createdDate',
+            sortBy = 'updatedAt',
             sortOrder = 'desc',
         } = dto;
 

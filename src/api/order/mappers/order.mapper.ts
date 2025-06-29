@@ -13,6 +13,7 @@ export class OrderMapper {
             quantity: detail.quantity,
             sellingPrice: detail.sellingPrice,
             promotionalPrice: detail.promotionalPrice,
+            
         }));
 
         return {
@@ -29,7 +30,8 @@ export class OrderMapper {
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             productPrice: order.productPrice,
-            sku: order.sku
+            sku: order.sku,
+            paymentIds:order.paymentIds
         };
     }
 }

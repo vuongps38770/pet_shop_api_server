@@ -24,7 +24,8 @@ export class OrderRespondDto {
     totalPrice: number;
     createdAt:Date;
     updatedAt:Date;
-    sku:string
+    sku:string;
+    paymentIds:string[]
 }
 
 export class OrderDetailResDto {
