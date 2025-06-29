@@ -24,7 +24,7 @@ import { StockHistoryModule } from "../stock-history/stock-history.module";
     ],
     controllers: [ProductVariantController],
     providers: [ProductVariantService],
-    exports: [ProductVariantService],
+    exports: [ProductVariantService,MongooseModule],
 
 })
 export class ProductVariantModule {}

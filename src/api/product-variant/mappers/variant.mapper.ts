@@ -36,4 +36,25 @@ export class VariantMapper {
         }
 
     }
+
+    static mapVariantUnitsByGroup(variant: any) {
+
+        const mappedUnits = variant.variantUnits_ids.map((unit: any) => ({
+            group: unit.variantGroupId?.name || 'Không xác định',
+            unit: {
+                _id: unit._id,
+                name: unit.name
+            }
+        }));
+
+        const name = mappedUnits
+            .map((item) => `${item.group}: ${item.unit.name}`)
+            .join(" - ");
+
+        return {
+            _id: variant._id,       
+            mappedUnits,                  
+            name                     
+        };
+    }
 }

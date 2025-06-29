@@ -180,12 +180,15 @@ export class ProductVariantService implements OnModuleInit {
     }
 
     async getVariantsWithStockHistoryByProductId(productId: string):Promise<VariantWithStockHistoryDto[]> {
-        const variants = await this.productVariantModel.find({ productId });
+        const variants = await this.productVariantModel.find({ productId }).populate({
+            path:'variantUnits_ids',
+            populate:'variantGroupId'
+        });
         const result = await Promise.all(
             variants.map(async (variant) => {
                 const stockHistory = await this.stockHistoryService.findByVariantId(variant._id);
                 return {
-                    variantId: variant._id, 
+                    variant: VariantMapper.mapVariantUnitsByGroup(variant), 
                     stockHistory,
                 };
             })
