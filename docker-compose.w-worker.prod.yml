@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nest-app-prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: node dist/main.js
+
+  worker:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      container_name: broadcast-worker
+      volumes:
+        - .:/app
+      env_file:
+        - .env
+      command: node dist/worker/broadcast.worker.js

@@ -4,3 +4,6 @@ npm-debug.log
 Dockerfile
 .dockerignore
 .env
+Dockerfile.dev
+docker-compose.local.yml
+*.log

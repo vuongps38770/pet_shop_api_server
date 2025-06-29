@@ -18,7 +18,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "build-doc:dev": "docker compose -f docker-compose.local.yml up --build",
+    "start-doc:dev": "docker compose -f docker-compose.local.yml up",
+    "build-doc-worker:dev": "docker compose -f docker-compose.w-worker.prod.yml up --build",
+    "start-doc-worker:dev": "docker compose -f docker-compose.w-worker.prod.yml up",
+    "start:worker": "ts-node -r tsconfig-paths/register src/worker/broadcast.worker.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -32,9 +37,12 @@
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.9.0",
     "bcryptjs": "^3.0.2",
+    "chalk": "^4.1.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cloudinary": "^2.6.1",
+    "firebase-admin": "^13.4.0",
+    "ioredis": "^5.6.1",
     "js-sha256": "^0.11.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.0",
