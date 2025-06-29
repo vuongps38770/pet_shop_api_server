@@ -27,6 +27,11 @@ import { PaymentModule } from './api/payment/payment.module';
 import { StockHistoryModule } from './api/stock-history/stock-history.module';
 import { PaymentAutoCheckService } from './jobs/payment-auto-check';
 import { FirebaseAdminModule } from './firebase-admin/firebase-admin.module';
+import { RatingModule } from './api/rating/rating.module';
+import { redisProvider } from './redis/redis.provider';
+import { RedisModule } from './redis/redis.module';
+import { FcmTokenModule } from './api/fcm-token/fcm-token.module';
+import { NotificationModule } from './api/notification/notification.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -71,15 +76,17 @@ import { FirebaseAdminModule } from './firebase-admin/firebase-admin.module';
     UsersModule,
     //OrderDetailModule
     OrderDetailModule,
-    //OrderModul
-    // e
+    //OrderModule
     OrderModule,
     //PaymentModule
     PaymentModule,
     //StockHistoryModule
     StockHistoryModule,
-    FirebaseAdminModule
+    FirebaseAdminModule,
     RatingModule,
+    RedisModule,
+    FcmTokenModule,
+    NotificationModule
     
 
 
@@ -92,7 +99,8 @@ import { FirebaseAdminModule } from './firebase-admin/firebase-admin.module';
       useClass: AuthGuard, 
     },
     OrderAutoCancelService,
-    PaymentAutoCheckService
+    PaymentAutoCheckService,
+    redisProvider
   ],
   
 })
