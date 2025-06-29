@@ -54,7 +54,8 @@ export class VariantMapper {
         return {
             _id: variant._id,       
             mappedUnits,                  
-            name                     
+            name,
+            stock:variant.stock                    
         };
     }
 }
