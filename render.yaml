@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: nest-app-prod
+    env: docker
+    plan: free
+    repo: https://github.com/vuongps38770/pet_shop_api_server
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    startCommand: node dist/main.js
+    env: docker
+    ports:
+      - 3000
+
+  - type: worker
+    name: broadcast-worker
+    env: docker
+    dockerfilePath: Dockerfile
+    startCommand: node dist/worker/broadcast.worker.js
+    env: docker
+
