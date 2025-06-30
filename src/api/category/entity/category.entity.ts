@@ -23,7 +23,15 @@ export class Category {
         },
     })
     name: string;
-    @Prop({ type: Types.ObjectId, ref: 'category' })
+    @Prop({
+        type: Types.ObjectId, ref: 'category',
+        set: (value: any) => {
+            if (typeof value === 'string') {
+                return new Types.ObjectId(value);
+            }
+            return value;
+        }
+    })
     parentId: Types.ObjectId
     @Prop({
         validate: {
@@ -37,7 +45,17 @@ export class Category {
     })
     categoryType?: CategoryType
 
-    @Prop({ type: [{ type: Types.ObjectId, ref: 'category' }] })
+    @Prop({
+        type: [{
+            type: Types.ObjectId, ref: 'category',
+            set: (value: any) => {
+                if (typeof value === 'string') {
+                    return new Types.ObjectId(value);
+                }
+                return value;
+            }
+        }]
+    })
     children?: Types.ObjectId[];
 
     @Prop({ type: Date, default: Date.now })

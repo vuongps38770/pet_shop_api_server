@@ -6,7 +6,15 @@ import { PaymentType } from '../models/payment-type';
 
 @Schema({ timestamps: true })
 export class Order extends Document {
-    @Prop({ required: true,ref:"User" })
+    @Prop({
+        required: true, ref: "User",
+        set: (value: any) => {
+            if (typeof value === 'string') {
+                return new Types.ObjectId(value);
+            }
+            return value;
+        }
+    })
     userID: string;
 
     @Prop({ required: true })
@@ -27,8 +35,15 @@ export class Order extends Document {
     @Prop({ type: String, enum: PaymentType, required: true })
     paymentType: PaymentType;
 
-    @Prop({type:[Types.ObjectId], ref:"Payment"})
-    paymentIds:Types.ObjectId[]
+    @Prop({
+        type: [Types.ObjectId], ref: "Payment",
+        set: (value: any[]) => {
+            return Array.isArray(value)
+                ? value.map(v => typeof v === 'string' ? new Types.ObjectId(v) : v)
+                : value;
+        }
+    })
+    paymentIds: Types.ObjectId[]
 
     @Prop({ type: String, enum: OrderStatus, required: true })
     status: OrderStatus;

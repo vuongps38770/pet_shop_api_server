@@ -5,7 +5,15 @@ export type NotificationDocument = Notification & Document;
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Notification {
-    @Prop({type:Types.ObjectId, ref:'User' })
+    @Prop({
+        type: Types.ObjectId, ref: 'User',
+        set: (value: any) => {
+            if (typeof value === 'string') {
+                return new Types.ObjectId(value);
+            }
+            return value;
+        }
+    })
     userId?: string;
     @Prop({ default: false })
     isBroadcast: boolean;

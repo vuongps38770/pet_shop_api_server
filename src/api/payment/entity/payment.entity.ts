@@ -6,13 +6,29 @@ export type PaymentDocument = Payment & Document;
 
 @Schema({ timestamps: true })
 export class Payment {
-  @Prop({ type: Types.ObjectId, required: true, ref: 'Order' })
+  @Prop({
+    type: Types.ObjectId, required: true, ref: 'Order',
+    set: (value: any) => {
+      if (typeof value === 'string') {
+        return new Types.ObjectId(value);
+      }
+      return value;
+    }
+  })
   orderId: Types.ObjectId;
 
-  @Prop({required:true, enum:PaymentPurpose})
-  paymentPurpose:PaymentPurpose
+  @Prop({ required: true, enum: PaymentPurpose })
+  paymentPurpose: PaymentPurpose
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({
+    type: Types.ObjectId, ref: 'User',
+    set: (value: any) => {
+      if (typeof value === 'string') {
+        return new Types.ObjectId(value);
+      }
+      return value;
+    }
+  })
   userId?: Types.ObjectId;
 
   @Prop({ required: true })
@@ -21,17 +37,17 @@ export class Payment {
   @Prop({ required: true })
   gateway_code?: string;
 
-  @Prop({required:true})
+  @Prop({ required: true })
   transactionId: string;
 
-  @Prop({ })
+  @Prop({})
   amount: number;
 
-  @Prop({  })
+  @Prop({})
   discount_amount: number;
 
   @Prop({ required: true, enum: ['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED', 'EXPIRED'], default: 'PENDING' })
-  status: 'PENDING'| 'SUCCESS'|'FAILED'|'CANCELLED'|'EXPIRED';
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'EXPIRED';
 
   @Prop()
   paymentMethod?: string;
