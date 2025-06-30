@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { RedisService } from './redis.service';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
+import { log } from 'console';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('redis-test')
 export class RedisController {
@@ -12,10 +14,11 @@ export class RedisController {
         @Query('value') value: string,
         @Query('ttl') ttl?: string
     ) {
+        log('doing...')
         await this.redisService.set(key, value, ttl ? parseInt(ttl) : undefined);
         return { message: `Set ${key} = ${value}` };
     }
-
+    @Public()
     @Get('get/:key')
     async getCache(@Param('key') key: string): Promise<PartialStandardResponse<any>> {
         const value = await this.redisService.get(key);
