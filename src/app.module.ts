@@ -47,7 +47,7 @@ import { BroadcastCronService } from './jobs/broadcast-queue';
     //jwt module
     JwtModule.register({
       secret: process.env.ACCESS_SECRET,
-      signOptions: {expiresIn: '15m' }, 
+      signOptions: { expiresIn: '15m' },
 
     }),
     //module cho api
@@ -88,7 +88,7 @@ import { BroadcastCronService } from './jobs/broadcast-queue';
     RedisModule,
     FcmTokenModule,
     NotificationModule
-    
+
 
 
   ],
@@ -96,15 +96,14 @@ import { BroadcastCronService } from './jobs/broadcast-queue';
   providers: [
     AppService,
     {
-      provide:APP_GUARD,
-      useClass: AuthGuard, 
+      provide: APP_GUARD,
+      useClass: AuthGuard,
     },
     OrderAutoCancelService,
     PaymentAutoCheckService,
-    redisProvider,
     BroadcastCronService
   ],
-  
+
 })
 export class AppModule implements OnModuleInit {
   private readonly logger = new Logger(AppModule.name);
