@@ -36,7 +36,7 @@ export class OrderService {
 
             //tạo cái order mới nhưng ko create nó sẽ bị lỗi tạo 1 cái doc mới mà k có data
             const newOrder = new this.orderModel({
-                userID: usId,
+                userID: new Types.ObjectId(usId),
                 paymentType: dto.paymentType,
                 sku: this.generateOrderId()
             })
@@ -68,7 +68,7 @@ export class OrderService {
 
             for (let item of dto.orderItems) {
                 const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity)
-                const newItem = await this.orderDetailService.createOrderDetailAndGetOrderDetailId(itemData)
+                const newItem = await this.orderDetailService.createOrderDetailAndGetOrderDetailId(itemData, newOrder._id as Types.ObjectId)
                 orderServerSumPrice += itemData.promotionalPrice * itemData.quantity || 0
                 orderItemIds.push(newItem._id)
                 await this.productVariantService.decreaseStock(item.variantId, item.quantity);
@@ -192,7 +192,7 @@ export class OrderService {
             sortOrder = 'acs',
         } = dto;
 
-        let filter: any = { userID: userId };
+        let filter: any = { userID: new Types.ObjectId(userId)  };
         if (statuses && statuses.length > 0) {
             filter.status = { $in: statuses };
         }
@@ -300,7 +300,7 @@ export class OrderService {
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-        if (role === UserRole.USER && order.userID !== userId) {
+        if (role === UserRole.USER && order.userID.toString() !== userId) {
             throw new AppException('Bạn không thể thao tác với đơn hàng không thuộc về bạn', HttpStatus.FORBIDDEN);
         }
 
