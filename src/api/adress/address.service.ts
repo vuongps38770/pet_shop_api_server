@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { Address } from "./entity/address.entity";
 import axios from "axios";
 import { DistrictDto, ProvinceDto } from "./dto/location-respond.dto";
@@ -59,7 +59,7 @@ export class AddressService {
 
     async createAddress(userId: string, dto: AddressCreateRequestDto) {
         const address = await this.addressModel.create({
-            userId: userId,
+            userId: new Types.ObjectId(userId),
             ...dto
         })
 
@@ -89,33 +89,36 @@ export class AddressService {
 
     async deleteAddress(userId: string, addressId: string) {
         try {
-            const result = await this.addressModel.deleteOne({ _id: addressId, userId: userId });
+            const result = await this.addressModel.deleteOne({
+                _id: new Types.ObjectId(addressId),
+                userId: new Types.ObjectId(userId)
+            });
             return result.deletedCount > 0;
         } catch (error) {
             throw error;
         }
     }
 
-    async getAddressByUserId(usId:string){
+    async getAddressByUserId(usId: string) {
         try {
-            const res = await this.addressModel.find({userId:usId})
+            const res = await this.addressModel.find({ userId: new Types.ObjectId(usId) })
             return res
         } catch (error) {
             throw error;
         }
     }
 
-    async editAdress(usId:string,dto:AddressEditRequestDto){
+    async editAdress(usId: string, dto: AddressEditRequestDto) {
         try {
-        const updated = await this.addressModel.findOneAndUpdate(
-            { _id: dto._id, userId: usId },
-            { $set: { ...dto } },
-            { new: true }
-        );
-        return updated;
-    } catch (error) {
-        throw error;
-    }
+            const updated = await this.addressModel.findOneAndUpdate(
+                { _id: dto._id, userId: new Types.ObjectId(usId) },
+                { $set: { ...dto } },
+                { new: true }
+            );
+            return updated;
+        } catch (error) {
+            throw error;
+        }
     }
 
 }
