@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber, IsMongoId } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class OrderDetailCreateDto {
     @IsNotEmpty()

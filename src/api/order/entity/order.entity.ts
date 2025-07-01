@@ -3,19 +3,28 @@ import { Document, Types } from 'mongoose';
 import { OrderAddress } from './order-addres.entity';
 import { OrderStatus } from '../models/order-status';
 import { PaymentType } from '../models/payment-type';
+import { log } from 'console';
 
-@Schema({ timestamps: true })
+@Schema({
+    timestamps: true,
+    toJSON: { getters: true },
+    toObject: { getters: true }
+})
 export class Order extends Document {
     @Prop({
+
+
         required: true, ref: "User",
         set: (value: any) => {
+            console.log('✅ Setter called for userID:', value);
             if (typeof value === 'string') {
+                log("value là string đang cast sang object id")
                 return new Types.ObjectId(value);
             }
             return value;
         }
     })
-    userID: string;
+    userID: Types.ObjectId;
 
     @Prop({ required: true })
     orderDetailIds: Types.ObjectId[];
