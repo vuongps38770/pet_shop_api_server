@@ -7,7 +7,7 @@ import { OrderDetailSchema } from './entity/order-detail.entity';
 @Module({
   controllers: [OrderDetailController],
   providers: [OrderDetailService],
-  exports: [OrderDetailService],
+  exports: [OrderDetailService,MongooseModule],
   imports: [
     MongooseModule.forFeature([
       {

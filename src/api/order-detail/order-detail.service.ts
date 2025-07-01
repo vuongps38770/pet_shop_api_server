@@ -12,9 +12,9 @@ export class OrderDetailService {
         @InjectModel('OrderDetail') private readonly orderDetailModel: Model<OrderDetail>
     ) { }
 
-    async createOrderDetailAndGetOrderDetailId(orderDetailReqDto: OrderDetailCreateDto): Promise<Types.ObjectId> {
+    async createOrderDetailAndGetOrderDetailId(orderDetailReqDto: OrderDetailCreateDto,ordeId:Types.ObjectId): Promise<Types.ObjectId> {
         try {
-            const newOrderDetail = await this.orderDetailModel.create({ ...orderDetailReqDto })
+            const newOrderDetail = await this.orderDetailModel.create({ ...orderDetailReqDto,orderId:ordeId })
             if (!newOrderDetail) {
                 throw new AppException('failed to save order detail')
             }
