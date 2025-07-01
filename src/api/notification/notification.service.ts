@@ -10,6 +10,7 @@ import { CreateNotificationDto, GetUserNotificationDto } from './dto/notificatio
 import { NotificationRead } from './emtity/notification-read.entity';
 import { RedisService } from 'src/redis/redis.service';
 import { RedisQueueName } from 'src/redis/constants/redis-queue.constant';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class NotificationService {
@@ -19,7 +20,8 @@ export class NotificationService {
         @InjectModel('Notification') private readonly notificationModel: Model<Notification>,
         private readonly redisService: RedisService,
         @InjectModel(NotificationRead.name)
-        private readonly notificationReadModel: Model<NotificationRead>
+        private readonly notificationReadModel: Model<NotificationRead>,
+        private readonly loudinaryService: CloudinaryService
     ) { }
 
     //test
@@ -29,18 +31,28 @@ export class NotificationService {
         await this.firebaseAdminService.sendNotificationToTokens(targetList, payload)
     }
 
-    async adminBroadcast(dto: CreateNotificationDto) {
+    async adminBroadcast(dto: CreateNotificationDto,image:Express.Multer.File) {
+        log(dto)
+        let imgUrl: string = '';
+        if (image) {
+            imgUrl = await this.loudinaryService.uploadImage(image);
+        }
+        log(imgUrl)
         const saved = await this.saveNotification({
             ...dto,
             isBroadcast: true,
-            userId: undefined
+            userId: undefined,
+            image_url: imgUrl,
         });
+
+        
         const fcmPayload = {
             notification: {
                 title: dto.title,
                 body: dto.message,
+                image:imgUrl
             },
-            data: dto.data ?? {},
+            data: {type:dto.type},
         };
 
         await this.redisService.pushToQueue(RedisQueueName.BROADCAST_QUEUE, {

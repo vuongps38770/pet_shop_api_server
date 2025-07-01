@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationSchema } from './emtity/notification.entity';
 import { NotificationRead, NotificationReadSchema } from './emtity/notification-read.entity';
 import { RedisModule } from 'src/redis/redis.module';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   controllers: [NotificationController],
@@ -24,7 +25,8 @@ import { RedisModule } from 'src/redis/redis.module';
         schema: NotificationReadSchema
       }
     ]),
-    RedisModule
+    RedisModule,
+    CloudinaryModule
   ],
 
   exports: [NotificationService],

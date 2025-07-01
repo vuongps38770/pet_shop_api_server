@@ -28,6 +28,12 @@ export class CreateNotificationDto {
   @IsOptional()
   @IsBoolean()
   isRead?: boolean;
+  
+  image_url:string;
+
+  scheduled_time:Date
+
+
 }
 
 

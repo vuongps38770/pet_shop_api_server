@@ -5,6 +5,7 @@ export type NotificationDocument = Notification & Document;
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Notification {
+    
     @Prop({
         type: Types.ObjectId, ref: 'User',
         set: (value: any) => {
@@ -32,8 +33,13 @@ export class Notification {
     @Prop({ type: Object, default: {} })
     data: Record<string, any>;
 
+
     @Prop({ default: false })
     isRead?: boolean;
+    @Prop({})
+    image_url: string;
+    @Prop({})
+    scheduled_time: Date
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

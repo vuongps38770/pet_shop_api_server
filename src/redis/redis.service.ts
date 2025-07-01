@@ -1,20 +1,35 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { RedisClient } from './redis.provider';
+import { log } from 'console';
 
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
+  
+  constructor(
+    @Inject(RedisClient) private redis: Redis
+  ) { }
 
-  constructor(@Inject(RedisClient) private readonly redis: Redis) { }
-
+  async pingWithTimeout(timeout = 2000): Promise<string> {
+    return Promise.race([
+      this.redis.ping(),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('Redis ping timeout')), timeout)
+      ),
+    ]);
+  }
+  
   private async checkReady(): Promise<void> {
-    if (this.redis.status !== 'ready') {
-      this.logger.warn(`Redis not ready: status = ${this.redis.status}`);
-      await new Promise((r) => setTimeout(r, 1000));
-      if (this.redis.status !== 'connect') {
-        throw new Error('Redis still not ready');
-      }
+    try {
+      log('checking');
+      const pong = await this.pingWithTimeout();
+      if (pong !== 'PONG') throw new Error('Redis not alive');
+    } catch (err) {
+      this.logger.warn('Redis ping failed, reconnecting...', err);
+      await this.redis.quit();
+      this.redis = new (require('ioredis'))(process.env.REDIS_URL, { tls: {} });
+      await this.pingWithTimeout(); // Thử ping lại, có timeout
     }
   }
 
@@ -29,6 +44,7 @@ export class RedisService {
   }
 
   async get<T = any>(key: string): Promise<T | null> {
+    log('doing')
     await this.checkReady();
     const data = await this.redis.get(key);
     if (!data) return null;
@@ -45,11 +61,13 @@ export class RedisService {
   }
 
   async pushToQueue(queue: string, data: any): Promise<void> {
-    await this.redis.rpush(queue, JSON.stringify(data));
+    const result = await this.redis.rpush(queue, JSON.stringify(data));
+    console.log(`[REDIS] Pushed to ${queue}, new length:`, result);
   }
 
-  async popFromQueue(queue: string): Promise<any> {
-    const res = await this.redis.blpop(queue, 0);
+  async popFromQueue(queue: string, timeout = 2): Promise<any> {
+    const res = await this.redis.blpop(queue, timeout);
+    console.log('[REDIS] Raw pop result:', res);
     if (!res) return null;
     return JSON.parse(res[1]);
   }
@@ -69,7 +87,9 @@ export class RedisService {
 //     private readonly configService: ConfigService
 //   ) { }
 //   private getClient(): Redis {
-//     return new Redis(this.configService.getOrThrow<string>('REDIS_URL'));
+//     return new Redis(this.configService.getOrThrow<string>('REDIS_URL'),{
+//       tls:{}
+//     });
 //   }
 //   async set(key: string, value: any, ttl?: number): Promise<void> {
 //     const redis = this.getClient();

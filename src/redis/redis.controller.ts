@@ -14,7 +14,6 @@ export class RedisController {
         @Query('value') value: string,
         @Query('ttl') ttl?: string
     ) {
-        log('doing...')
         await this.redisService.set(key, value, ttl ? parseInt(ttl) : undefined);
         return { message: `Set ${key} = ${value}` };
     }

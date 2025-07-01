@@ -3,21 +3,27 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { RedisService } from '../redis/redis.service';
 import { FcmTokenService } from '../api/fcm-token/fcm-token.service';
 import { FirebaseAdminService } from '../firebase-admin/firebase-admin.service';
+import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
+import { log } from 'console';
 
 @Injectable()
 export class BroadcastCronService {
     private readonly logger = new Logger(BroadcastCronService.name);
-
+    private readonly redisForCron: Redis;
     constructor(
-        private redisService: RedisService,
+        configService: ConfigService,
         private fcmService: FcmTokenService,
         private firebase: FirebaseAdminService,
-    ) { }
+    ) {
+        this.redisForCron = new Redis(configService.getOrThrow<string>('REDIS_URL'), { tls: {} });
+    }
 
 
     @Cron(CronExpression.EVERY_10_SECONDS)
     async handleBroadcastQueue() {
-        const job = await this.redisService.popFromQueue('broadcast-queue');
+        const job = await this.popFromQueue('broadcast-queue');
+        log(job)
         if (!job) return;
 
         const { payload } = job;
@@ -29,5 +35,11 @@ export class BroadcastCronService {
         } else {
             this.logger.warn('⚠️ No FCM tokens found');
         }
+    }
+    
+    async popFromQueue(queue: string, timeout = 2): Promise<any> {
+        const res = await this.redisForCron.blpop(queue, timeout);
+        if (!res) return null;
+        return JSON.parse(res[1]);
     }
 }

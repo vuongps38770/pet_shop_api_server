@@ -1,13 +1,17 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { messaging } from 'firebase-admin';
 import { CreateNotificationDto, GetUserNotificationDto } from './dto/notification.req.dto';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('notification')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) { }
+  constructor(
+    private readonly notificationService: NotificationService
+
+  ) { }
 
   @Post('admin-send-to-all')
   async adminSendNotifiToAllUser(@Body() payload: messaging.MessagingPayload) {
@@ -16,10 +20,18 @@ export class NotificationController {
 
 
   @Post('broadcast')
+  @UseInterceptors(FileInterceptor('image'))
   async adminBroadcast(
-    @Body() dto: CreateNotificationDto
-  ) {
-    await this.notificationService.adminBroadcast(dto)
+    @Body('data') rawData: string, @UploadedFile() image: Express.Multer.File
+  ): Promise<PartialStandardResponse<any>> {
+    let dto: CreateNotificationDto;
+    try {
+      dto = JSON.parse(rawData);
+    } catch (err) {
+      throw new BadRequestException('Invalid JSON in data field');
+    }
+    await this.notificationService.adminBroadcast(dto, image)
+    return {}
   }
 
   @Get()

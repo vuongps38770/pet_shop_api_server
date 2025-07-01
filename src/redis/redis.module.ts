@@ -1,13 +1,13 @@
 // src/redis/redis.module.ts
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { RedisService } from './redis.service';
 import { redisProvider } from './redis.provider';
 import { RedisController } from './redis.controller';
 
+@Global()
 @Module({
   providers: [redisProvider, RedisService],
-  exports: [RedisService],
-  controllers:[RedisController],
-  
+  exports: [RedisService,redisProvider],
+  controllers: [RedisController]
 })
-export class RedisModule {}
+export class RedisModule { }
