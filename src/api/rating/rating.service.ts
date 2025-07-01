@@ -6,12 +6,15 @@ import { CreateRatingDto, UpdateRatingDto } from './dto/rating-req.dto';
 import { RatingResDto } from './dto/rating-res.dto';
 import { ProductVariant } from '../product-variant/entity/product-variant.entity';
 import { Product } from '../products/entity/product.entity';
+import { OrderDetail } from '../order-detail/entity/order-detail.entity';
+import { log } from 'console';
 
 @Injectable()
 export class RatingService {
   constructor(
     @InjectModel(Review.name) private reviewModel: Model<Review>,
     @InjectModel("Product") private readonly productModel: Model<Product>,
+    @InjectModel('OrderDetail') private readonly orderDetailModel: Model<OrderDetail>
 
   ) { }
 
@@ -99,7 +102,7 @@ export class RatingService {
     } else {
       sort['createdAt'] = -1;
     }
-
+    let isBought = await this.hasUserBoughtProduct(productId, userId)
     const reviews = await this.reviewModel
       .find(query)
       .populate('user_id', 'name avatar')
@@ -129,18 +132,64 @@ export class RatingService {
         )
         : false;
       return {
-          ...review,
-          isLiked,
-          isDisliked,
-          isMine,
+        ...review,
+        isLiked,
+        isDisliked,
+        isMine,
       };
     });
 
     return {
       items: mappedReviews,
-      isBought:false,
+      isBought,
       product
     };
   }
+  async hasUserBoughtProduct(productId: string, userId?: string): Promise<boolean> {
+    if (!userId) {
+      console.log('❌ No userId provided');
+      return false;
+    }
 
+    // Log các tham số truyền vào
+    console.log('🔎 Checking if user bought product:');
+    console.log('ProductId:', productId, '| typeof:', typeof productId);
+    console.log('UserId:', userId, '| typeof:', typeof userId);
+    if (!userId) return false
+    const result = await this.orderDetailModel.aggregate([
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $lookup: {
+          from: 'productvariants',
+          localField: 'variantId',
+          foreignField: '_id',
+          as: 'variant'
+        }
+      },
+      {
+        $addFields: {
+          variantId: { $toObjectId: '$variantId' }
+        }
+      },
+      { $unwind: '$variant' },
+      {
+        $match: {
+          'variant.productId': new Types.ObjectId(productId),
+          'order.userID': new Types.ObjectId(userId),
+          'order.status': 'RECEIVED'
+        }
+      },
+      { $limit: 1 }
+    ]);
+    log(JSON.stringify(result))
+    return result.length > 0;
+  }
 }
