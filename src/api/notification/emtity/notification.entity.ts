@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type NotificationDocument = Notification & Document;
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+@Schema({ timestamps: true })
 export class Notification {
     
     @Prop({
@@ -33,6 +33,8 @@ export class Notification {
     @Prop({ type: Object, default: {} })
     data: Record<string, any>;
 
+    @Prop({required:true})
+    status:"PENDING"|"SENT"|"CANCELED"
 
     @Prop({ default: false })
     isRead?: boolean;

@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {ApiErrorStatus} from '../../constants/api.error.keys'
 export class AppException extends HttpException {
-    codeType?: keyof typeof ApiErrorStatus
-    constructor(message: string | string[], code: number = HttpStatus.BAD_REQUEST, codeType?: keyof typeof ApiErrorStatus) {
+    codeType?: string;
+    constructor(message: string | string[], code: number = HttpStatus.BAD_REQUEST, codeType?: string) {
         super(
             {
                 success: false,

@@ -2,7 +2,7 @@ export class CartRespondDto {
     _id:string
     productVariantId: string
     quantity: number
-    isOutOfStock:boolean
+    availableStock:number
     isActivate:boolean
     images:string[]
     promotionalPrice:number

@@ -36,8 +36,8 @@ export class OrderController {
   }
 
   @Post('calculate-price')
-  async calculateOrderPricePreview(@Body() dto: CalculateOrderPriceReqDto): Promise<PartialStandardResponse<any>> {
-    const data = await this.orderService.calculateOrderPricePreview(dto);
+  async calculateOrderPricePreview(@CurrentUserId() usId: string, @Body() dto: CalculateOrderPriceReqDto): Promise<PartialStandardResponse<any>> {
+    const data = await this.orderService.calculateOrderPricePreview(dto, usId);
     return { data };
   }
 

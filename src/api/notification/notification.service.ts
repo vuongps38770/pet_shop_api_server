@@ -11,6 +11,7 @@ import { NotificationRead } from './emtity/notification-read.entity';
 import { RedisService } from 'src/redis/redis.service';
 import { RedisQueueName } from 'src/redis/constants/redis-queue.constant';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { AppException } from 'src/common/exeptions/app.exeption';
 
 @Injectable()
 export class NotificationService {
@@ -30,29 +31,51 @@ export class NotificationService {
         log("targetList", targetList)
         await this.firebaseAdminService.sendNotificationToTokens(targetList, payload)
     }
+    private assertISODateString(value: string): void {
+        const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+        const isValid = isoRegex.test(value) && !isNaN(Date.parse(value));
 
-    async adminBroadcast(dto: CreateNotificationDto,image:Express.Multer.File) {
+        if (!isValid) {
+            throw new Error('scheduled_time must be in ISO 8601 format (e.g. 2025-07-02T14:30:00Z)');
+        }
+    }
+    async adminBroadcast(dto: CreateNotificationDto, image: Express.Multer.File) {
+        try {
+            if (dto.scheduled_time) {
+                this.assertISODateString(dto.scheduled_time)
+            }
+        } catch (error) {
+            throw new AppException('date have to format (iso)')
+        }
         log(dto)
         let imgUrl: string = '';
         if (image) {
             imgUrl = await this.loudinaryService.uploadImage(image);
         }
         log(imgUrl)
+
+        const scheduledDate = dto.scheduled_time
+            ? new Date(dto.scheduled_time).toISOString()
+            : undefined;
+
         const saved = await this.saveNotification({
             ...dto,
+            scheduled_time: scheduledDate,
             isBroadcast: true,
             userId: undefined,
             image_url: imgUrl,
-        });
 
-        
+        }, 'PENDING');
+
+
         const fcmPayload = {
+            scheduled_time: dto.scheduled_time,
             notification: {
                 title: dto.title,
                 body: dto.message,
-                image:imgUrl
+                image: imgUrl
             },
-            data: {type:dto.type},
+            data: { type: dto.type },
         };
 
         await this.redisService.pushToQueue(RedisQueueName.BROADCAST_QUEUE, {
@@ -68,8 +91,8 @@ export class NotificationService {
 
 
 
-    async saveNotification(dto: CreateNotificationDto) {
-        return this.notificationModel.create(dto)
+    async saveNotification(dto: CreateNotificationDto, status: "PENDING" | "SENT" | "CANCELED") {
+        return this.notificationModel.create({ ...dto, status })
     }
     async getByUser(userId: string, query: GetUserNotificationDto) {
         const page = parseInt(query?.page ?? '1') || 1;
@@ -79,7 +102,7 @@ export class NotificationService {
         const filter = {
             $or: [
                 { userId: new Types.ObjectId(userId) },
-                { isBroadcast: true }
+                { isBroadcast: true, status: 'SENT' }
             ]
         };
 
@@ -144,5 +167,33 @@ export class NotificationService {
 
         await Promise.all(writes);
         return { success: true };
+    }
+
+    async findOneByIdAndUpDateStatus(notificationId: Types.ObjectId, status: "PENDING" | "SENT" | "CANCELED") {
+        await this.notificationModel.findOneAndUpdate(notificationId, { status: status })
+    }
+    async findAllForAdmin(page = 1, limit = 10) {
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            this.notificationModel
+                .find({ isBroadcast: true })
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            this.notificationModel.countDocuments({ isBroadcast: true }),
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
+        };
     }
 }

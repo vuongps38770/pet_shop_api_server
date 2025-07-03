@@ -1,8 +1,8 @@
-import { IsOptional, IsString, IsBoolean, IsEnum, IsObject,IsNumberString } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEnum, IsObject, IsNumberString } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateNotificationDto {
-  userId?: string|Types.ObjectId; 
+  userId?: string | Types.ObjectId;
 
   @IsOptional()
   @IsBoolean()
@@ -28,10 +28,10 @@ export class CreateNotificationDto {
   @IsOptional()
   @IsBoolean()
   isRead?: boolean;
-  
-  image_url:string;
 
-  scheduled_time:Date
+  image_url: string;
+  @IsOptional()
+  scheduled_time?: string
 
 
 }
@@ -49,9 +49,9 @@ export class MarkAsReadDto {
 export class GetUserNotificationDto {
   @IsOptional()
   @IsNumberString()
-  page?: string; 
+  page?: string;
 
   @IsOptional()
   @IsNumberString()
-  limit?: string; 
+  limit?: string;
 }

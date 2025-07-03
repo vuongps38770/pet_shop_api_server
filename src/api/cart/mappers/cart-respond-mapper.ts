@@ -8,7 +8,7 @@ export class CartRespondMapper {
             _id: cart?._id,
             images: cart?.productVariantId?.productId?.images || [],
             isActivate: cart?.productVariantId?.productId?.isActivate ?? false,
-            isOutOfStock: (cart?.productVariantId?.stock ?? 0) < (cart?.quantity ?? 0),
+            availableStock:cart?.productVariantId?.stock ??0,
             productName: cart?.productVariantId?.productId?.name || '',
             productVariantId: cart?.productVariantId?._id,
             promotionalPrice: cart?.productVariantId?.promotionalPrice ?? 0,

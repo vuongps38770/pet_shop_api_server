@@ -13,9 +13,10 @@ import { ClientSession, Model, Types } from 'mongoose';
 import { PaymentResDto, PaymentStatusResDto } from './dto/payment.res';
 import qs from 'qs';
 import { InjectModel } from '@nestjs/mongoose';
-import { Payment } from './entity/payment.entity';
+import { Payment, PaymentDocument } from './entity/payment.entity';
 import { TimeLimit } from 'src/constants/TimeLimit';
 import { PaymentPurpose } from './models/payment-purpose.enum';
+import { PaymentStatus } from './dto/payment.req';
 
 @Injectable()
 export class PaymentService {
@@ -23,7 +24,7 @@ export class PaymentService {
         private readonly configService: ConfigService,
         @Inject(forwardRef(() => OrderService))
         private readonly orderService: OrderService,
-        @InjectModel("Payment") private readonly paymentModel: Model<Payment>,
+        @InjectModel("Payment") private readonly paymentModel: Model<PaymentDocument>,
 
     ) { }
 
@@ -175,13 +176,13 @@ export class PaymentService {
                 transactionId: appTransId,
             })
 
-            await payment.save({session:session})
-            await this.orderService.saveToPaymentIdsWithSession(order._id,payment._id,session)
+            await payment.save({ session: session })
+            await this.orderService.saveToPaymentIdsWithSession(order._id, payment._id.toString(), session)
 
             return {
                 transactionId: resData.app_trans_id,
                 gateway_code: resData.zp_trans_token,
-                _id:payment._id.toString()
+                _id: payment._id.toString()
             };
         } catch (error) {
             console.error('ZaloPay API error:', error);
@@ -259,28 +260,31 @@ export class PaymentService {
     public async getOrderById(orderId: string): Promise<OrderRespondDto | null> {
         return this.orderService.findOrderById(orderId)
     }
-    async getPaymentStatus(paymentId: string | Types.ObjectId){
+    async getPaymentStatus(paymentId: string | Types.ObjectId) {
+        log("paymentId: ", paymentId)
         const payment = await this.paymentModel.findById(paymentId)
         if (!payment) throw new AppException("Không tìm thây sgiao dịch")
-        if(payment.provider=='ZALOPAY'){
+        if (payment.provider == 'ZALOPAY') {
             return await this.getZalopayPaymentStatus(paymentId)
-        }else{
+        } else {
             throw new AppException("Đơn hàng hiện ko thể truy cập")
         }
     }
     //1: thành công
     //2: thaats biaj
     //3: pending
-    //4: het hanj
+    //4: het hanj/da huy
     async getZalopayPaymentStatus(paymentId: string | Types.ObjectId): Promise<PaymentStatusResDto> {
+        log("paymentId: ", paymentId)
         const payment = await this.paymentModel.findById(paymentId)
         if (!payment) throw new AppException("Không tìm thây sgiao dịch")
+
         if (payment.status == 'SUCCESS') {
             return {
                 return_code: 1
             }
         }
-        if (payment.status == 'EXPIRED' || (payment.expiredAt && payment.expiredAt.getTime() < Date.now())) {
+        if (payment.status == 'EXPIRED') {
             return {
                 return_code: 4
             }
@@ -289,14 +293,23 @@ export class PaymentService {
             if (payment.status == 'PENDING') {
                 payment.status = 'EXPIRED'
                 await payment.save()
+                await this.orderService.systemUpdateOrderStatus(payment.orderId, OrderStatus.CANCELLED)
             }
+            return {
+                return_code: 4
+            }
+        }
 
+        const order = await this.orderService.findOrderById(payment.orderId)
+        if (order.status == OrderStatus.CANCELLED) {
+            payment.status = 'CANCELLED'
+            await payment.save()
             return {
                 return_code: 4
             }
         }
         const config = {
-            refundEndpoint: this.configService.getOrThrow("ZALOPAY_REFUND_ENDPOINT"),
+            refundEndpoint: this.configService.getOrThrow("ZALOPAY_QUERRY_ENDPOINT"),
             app_id: this.configService.getOrThrow("ZALOPAY_APP_ID"),
             key1: this.configService.getOrThrow("ZALOPAY_MOBILE_KEY")
         }
@@ -320,6 +333,9 @@ export class PaymentService {
             discount_amount,
             zp_trans_id
         } = res.data
+        if (zp_trans_id) {
+            payment.gateway_trans_id = Number(zp_trans_id)
+        }
 
         log(res.data)
         if (return_code == 2) {
@@ -330,6 +346,7 @@ export class PaymentService {
                 payment.discount_amount = discount_amount,
                 payment.status = 'SUCCESS'
             await payment.save()
+            await this.orderService.systemUpdateOrderStatus(payment.orderId, OrderStatus.PAYMENT_SUCCESSFUL)
             return {
                 return_code
             }
@@ -342,7 +359,7 @@ export class PaymentService {
 
             }
             return {
-                return_code
+                return_code: 3
             }
         }
         else throw new Error("Lỗi, không hể truy suất trạng thái đơn hàng!")
@@ -351,23 +368,109 @@ export class PaymentService {
     async findCurentPendingPayments() {
         return await this.paymentModel.find({
             status: 'PENDING',
+            paymentPurpose: PaymentPurpose.PAY,
             createdAt: { $gt: new Date(Date.now() - 1000 * 60 * 30) },
         });
     }
 
     //999: hết hạn hoặc ko thấy
     //555: vẫn còn hiệu lực
-    async getPaymentByOrderId(orderId:string){
-        const data = await this.paymentModel.findOne({orderId:new Types.ObjectId(orderId),paymentPurpose:PaymentPurpose.PAY,status:"PENDING"})
-        if(!data){
-            return{
-                code:999
+    async getPaymentByOrderId(orderId: string) {
+        const data = await this.paymentModel.findOne({ orderId: new Types.ObjectId(orderId), paymentPurpose: PaymentPurpose.PAY, status: "PENDING" })
+        if (!data) {
+            return {
+                code: 999
             }
         }
-        return{
-            code:555,
-            payment:data
+        return {
+            code: 555,
+            payment: data
         }
     }
+
+
+    async refundPayment(paymentId: Types.ObjectId, description: string) {
+        const payment = await this.paymentModel.findById(paymentId)
+        if (!payment) throw new AppException('Không tìm thấy giao dịch', 404)
+        if (payment.provider == 'ZALOPAY') {
+            await this.refundZaloPay(paymentId, description)
+        }
+        else {
+            throw new AppException(' chức năng chưa phát triển')
+        }
+    }
+    async refundZaloPay(paymentId: Types.ObjectId, description: string) {
+        const payment = await this.paymentModel.findById(paymentId)
+        if (!payment) throw new AppException('Không tìm thấy giao dịch', 404)
+
+        const config = {
+            appid: Number(this.configService.getOrThrow("ZALOPAY_APP_ID")),
+            key1: this.configService.getOrThrow("ZALOPAY_MOBILE_KEY"),
+            refundEndpoint: this.configService.getOrThrow("ZALOPAY_REFUND_ENDPOINT")
+        }
+        log(config)
+        const m_refund_id = this.generateZalopayRefundId(config.appid + "")
+        const timestamp = new Date().getTime()
+
+        const macStr = config.appid + "|" + payment.gateway_trans_id + "|" + payment.amount + "|" + description + "|" + timestamp;
+        const mac = crypto.createHmac('sha256', config.key1).update(macStr).digest('hex')
+        const body = {
+            m_refund_id,
+            app_id: config.appid,
+            zp_trans_id: payment.gateway_trans_id + "",
+            amount: payment.amount,
+            timestamp,
+            mac,
+            description
+        }
+        log(body)
+        const res = await axios.post(config.refundEndpoint, body, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        console.log(res.data);
+    }
+
+    private generateZalopayRefundId(appId: string): string {
+        const now = new Date();
+
+        const yy = String(now.getFullYear()).slice(-2);
+        const MM = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const datePart = `${yy}${MM}${dd}`;
+
+        const randomPart = [...Array(10)]
+            .map(() => Math.floor(Math.random() * 10).toString())
+            .join('');
+
+        return `${datePart}_${appId}_${randomPart}`;
+    }
+
+
+    async getAvailablePaymentIdThatPaidByOrderId(orderId: Types.ObjectId) {
+        const payment = await this.paymentModel.findOne({
+            orderId,
+            paymentPurpose: PaymentPurpose.PAY,
+            status: PaymentStatus.SUCCESS,
+        }).sort({ createdAt: -1 });
+
+        if (!payment) return null;
+
+        
+        const refund = await this.paymentModel.findOne({
+            orderId,
+            paymentPurpose: PaymentPurpose.REFUND,
+            status: PaymentStatus.SUCCESS,
+            transactionId: payment.transactionId, 
+        });
+
+        if (refund) {
+            return null;
+        }
+        return payment._id.toString();
+    }
 }
+
+
 

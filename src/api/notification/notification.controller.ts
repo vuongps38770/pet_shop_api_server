@@ -13,12 +13,12 @@ export class NotificationController {
 
   ) { }
 
-  @Post('admin-send-to-all')
-  async adminSendNotifiToAllUser(@Body() payload: messaging.MessagingPayload) {
-    await this.notificationService.adminSendNotifiToAllUser(payload)
-  }
+  // @Post('admin-send-to-all')
+  // async adminSendNotifiToAllUser(@Body() payload: messaging.MessagingPayload) {
+  //   await this.notificationService.adminSendNotifiToAllUser(payload)
+  // }
 
-
+  
   @Post('broadcast')
   @UseInterceptors(FileInterceptor('image'))
   async adminBroadcast(
@@ -53,5 +53,10 @@ export class NotificationController {
     return this.notificationService.markAsRead(notificationIds, userId);
   }
 
+  @Get('admin')
+  async getAllForAdmin(@Query('page') page: number, @Query('limit') limit: number):Promise<PartialStandardResponse<any>> {
+    const data = await this.notificationService.findAllForAdmin(page, limit)
+    return{data}
+  }
 
 }

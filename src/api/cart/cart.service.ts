@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { Cart } from "./entity/cart.entity";
 import { CartRequestCreateDto } from "./dto/cart-request-create.dto";
 import { error, log } from "console";
@@ -19,7 +19,7 @@ export class CartService {
 
 
     async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto[]> {
-        const existCart = await this.cartModel.findOne({ userId, productVariantId: cartdto.productVariantId })
+        const existCart = await this.cartModel.findOne({ userId, productVariantId: new Types.ObjectId(cartdto.productVariantId)  })
         if (existCart) {
             existCart.quantity = cartdto.quantity;
             if (existCart.quantity < 1) {
@@ -111,9 +111,15 @@ export class CartService {
         if (quantity < 1) {
             throw new AppException("Invalid number for cart!")
         }
-        const cartItem = await this.cartModel.findByIdAndUpdate(cartId, { quantity: quantity })
+        const cartItem = await this.cartModel.findByIdAndUpdate(cartId, { quantity: quantity }, {
+            new: true,            
+            runValidators: true,   
+        })
         if (!cartItem) {
             throw new AppException("Cart item not found!", HttpStatus.NOT_FOUND)
         }
+    }
+    async removeManyCarts(cartIds:string[]){
+        await this.cartModel.deleteMany({_id:{ $in: cartIds}})
     }
 }

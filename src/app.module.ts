@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { InjectConnection, MongooseModule } from '@nestjs/mongoose';
@@ -33,6 +33,8 @@ import { RedisModule } from './redis/redis.module';
 import { FcmTokenModule } from './api/fcm-token/fcm-token.module';
 import { NotificationModule } from './api/notification/notification.module';
 import { BroadcastCronService } from './jobs/broadcast-queue';
+import { LoggerMiddleware } from './middleware/route-logger.middleware';
+import { VoucherModule } from './api/voucher/voucher.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -87,7 +89,8 @@ import { BroadcastCronService } from './jobs/broadcast-queue';
     RatingModule,
     RedisModule,
     FcmTokenModule,
-    NotificationModule
+    NotificationModule,
+    VoucherModule
 
 
 
@@ -109,6 +112,10 @@ export class AppModule implements OnModuleInit {
   private readonly logger = new Logger(AppModule.name);
 
   constructor(@InjectConnection() private readonly connection: Connection) { }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*'); 
+  }
 
   async onModuleInit() {
     const state = this.connection.readyState;

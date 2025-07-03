@@ -26,6 +26,8 @@ export class OrderCreateReqDto {
     @IsIn(Object.values(PaymentType))
     paymentType: PaymentType;
 
+    @IsOptional()
+    cartIds?:string[]
 }
 
 export class OrderReqItem {
@@ -104,4 +106,5 @@ export class CalculateOrderPriceReqDto {
 
     @IsOptional()
     voucherCode?: string;
+
 }

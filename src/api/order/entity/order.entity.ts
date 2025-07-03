@@ -5,12 +5,14 @@ import { OrderStatus } from '../models/order-status';
 import { PaymentType } from '../models/payment-type';
 import { log } from 'console';
 
+
+
 @Schema({
     timestamps: true,
     toJSON: { getters: true },
     toObject: { getters: true }
 })
-export class Order extends Document {
+export class Order {
     @Prop({
 
 
@@ -66,6 +68,10 @@ export class Order extends Document {
     @Prop({ required: true })
     sku: string;
 
+    @Prop()
+    discount?: number;
+
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+export type OrderDocument = Order & Document<Types.ObjectId>;

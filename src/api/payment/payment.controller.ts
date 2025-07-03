@@ -5,6 +5,7 @@ import { Public } from 'src/decorators/public.decorator';
 import { log } from 'console';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 import { PaymentStatusResDto } from './dto/payment.res';
+import { Types } from 'mongoose';
 
 @Controller('payment')
 export class PaymentController {
@@ -28,7 +29,7 @@ export class PaymentController {
     };
   }
 
-  @Get('payment-status')
+  @Get('payment-status/:paymentId')
   async getZalopayStatus(@Param('paymentId') paymentId:string):Promise<PartialStandardResponse<PaymentStatusResDto>> {
     const data = await this.paymentService.getPaymentStatus(paymentId)
     return{
@@ -42,6 +43,11 @@ export class PaymentController {
     return{
       data
     }
+  }
+
+  @Post('refund-test/:paymentId')
+  async refundPayment(@Param('paymentId') paymentId:string,@Body('description') description:string){
+    await this.paymentService.refundPayment(new Types.ObjectId(paymentId),description)
   }
 
   

@@ -1,39 +1,47 @@
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
-import { Order } from './entity/order.entity';
+import { Order, OrderDocument } from './entity/order.entity';
 import { OrderAdminListReqDto, OrderCreateReqDto, OrderListReqDto, OrderReqItem, CalculateOrderPriceReqDto } from './dto/order.req.dto';
 import { OrderDetailService } from '../order-detail/order-detail.service';
 import { ProductVariantService } from '../product-variant/product-variant.service';
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { TimeLimit } from 'src/constants/TimeLimit';
-import { OrderStatus, OrderStatusPermissionMap, OrderStatusTransitionMap } from './models/order-status';
+import { OrderStatus, OrderStatusPermissionMap, OrderStatusSystem, OrderStatusTransitionMap, statusToActionMap } from './models/order-status';
 import { OrderCheckoutResDto, OrderDetailResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
 import { Address } from '../adress/entity/address.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { PaymentService } from '../payment/payment.service';
 import { PaymentType } from './models/payment-type';
 import { UserRole } from '../auth/models/role.enum';
-import { log } from 'console';
+import { error, log } from 'console';
 import { PaymentResDto } from '../payment/dto/payment.res';
+import { CartService } from '../cart/cart.service';
+import { OrderLogService } from '../order-log/order-log.service';
+import { OrderAction } from '../order-log/models/order-action.enum';
+import { RedisService } from 'src/redis/redis.service';
+import { VoucherService } from '../voucher/voucher.service';
 
 @Injectable()
 export class OrderService {
 
     constructor(
-        @InjectModel("Order") private readonly orderModel: Model<Order>,
+        @InjectModel("Order") private readonly orderModel: Model<OrderDocument>,
         @InjectModel("Address") private readonly addressModel: Model<Address>,
         @InjectConnection() private readonly connection: Connection,
         private readonly orderDetailService: OrderDetailService,
         private readonly productVariantService: ProductVariantService,
-        private readonly paymentService: PaymentService
+        private readonly paymentService: PaymentService,
+        private readonly cartService: CartService,
+        private readonly orderLogService: OrderLogService,
+        private readonly redisService: RedisService,
+        private readonly voucherService: VoucherService
     ) { }
 
     async createOrder(usId: string, dto: OrderCreateReqDto): Promise<OrderCheckoutResDto> {
         const session = await this.connection.startSession()
         session.startTransaction()
         try {
-
             //tạo cái order mới nhưng ko create nó sẽ bị lỗi tạo 1 cái doc mới mà k có data
             const newOrder = new this.orderModel({
                 userID: new Types.ObjectId(usId),
@@ -57,20 +65,16 @@ export class OrderService {
                 refId: adress._id.toString()
             }
 
-            //ktra voucher nếu có nhmà chưa làm
-            if (dto.voucherCode) {
-                await this.checkVoucherCode(dto.voucherCode, usId)
-                newOrder.voucherID = new Types.ObjectId(dto.voucherCode)
-            }
-
             let orderItemIds: Types.ObjectId[] = []
             let orderServerSumPrice = 0
+            let productIds: Types.ObjectId[] = []
 
             for (let item of dto.orderItems) {
                 const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity)
                 const newItem = await this.orderDetailService.createOrderDetailAndGetOrderDetailId(itemData, newOrder._id as Types.ObjectId)
                 orderServerSumPrice += itemData.promotionalPrice * itemData.quantity || 0
                 orderItemIds.push(newItem._id)
+                productIds.push(new Types.ObjectId(itemData.productId));
                 await this.productVariantService.decreaseStock(item.variantId, item.quantity);
             }
             newOrder.orderDetailIds = orderItemIds
@@ -84,6 +88,24 @@ export class OrderService {
             newOrder.shippingFee = shippingFee
             newOrder.totalPrice = shippingFee + orderServerSumPrice
 
+            // Xử lý voucher
+            let discount = 0;
+            let voucherId: Types.ObjectId | undefined = undefined;
+            if (dto.voucherCode) {
+                // Tìm voucher theo code
+                const voucher = await this.voucherService['voucherModel'].findOne({ code: dto.voucherCode });
+                if (!voucher) throw new AppException('Voucher không tồn tại hoặc đã bị xoá', 400);
+                // Tính discount
+                discount = await this.voucherService.checkOrderAndCalculateDiscount(
+                    voucher,
+                    newOrder.totalPrice,
+                    productIds,
+                    new Types.ObjectId(usId)
+                );
+                newOrder.discount = discount;
+                voucherId = new Types.ObjectId(voucher._id as string);
+            }
+
             if (dto.paymentType == 'COD') {
                 newOrder.status = OrderStatus.NEWORDER
             } else if (dto.paymentType == PaymentType.MOMO
@@ -94,15 +116,22 @@ export class OrderService {
             } else {
                 throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);
             }
+            if (voucherId) newOrder.voucherID = voucherId;
             await newOrder.save({ session })
+            // Đánh dấu user đã dùng voucher sau khi order thành công
+            if (voucherId) {
+                await this.voucherService.markVoucherUsed(voucherId, new Types.ObjectId(usId), newOrder._id);
+            }
             let payment: PaymentResDto | undefined = undefined;
             if (dto.paymentType == PaymentType.ZALOPAY) {
-                payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId,session);
+                payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId, session);
             }
             await session.commitTransaction()
-
+            if (dto.cartIds) {
+                await this.cartService.removeManyCarts(dto.cartIds)
+            }
             return {
-                orderId: newOrder._id as string,
+                orderId: newOrder._id.toString(),
                 paymentMethod: newOrder.paymentType,
                 payment
             }
@@ -124,9 +153,6 @@ export class OrderService {
     }
 
 
-    private async checkVoucherCode(voucherCode: string, usid: string) {
-        /**todo: thêm voucher */
-    }
 
     private generateOrderId(): string {
         const now = new Date();
@@ -158,11 +184,11 @@ export class OrderService {
             throw new NotFoundException('Order not found');
         }
 
-        return OrderMapper.toRespondDto(order)
+        return OrderMapper.toRespondDto(order, null)
     }
-    
 
-    async findOrderByIdWidthSession(orderId: string | Types.ObjectId,session:ClientSession): Promise<OrderRespondDto> {
+
+    async findOrderByIdWidthSession(orderId: string | Types.ObjectId, session: ClientSession): Promise<OrderRespondDto> {
         const order = await this.orderModel.findById(orderId)
             .populate({
                 path: 'orderDetailIds',
@@ -174,10 +200,10 @@ export class OrderService {
             throw new NotFoundException('Order not found');
         }
 
-        return OrderMapper.toRespondDto(order)
+        return OrderMapper.toRespondDto(order, null)
     }
-    async saveToPaymentIdsWithSession(orderId:string|Types.ObjectId,paymentId:string|Types.ObjectId,session:ClientSession){
-        await this.orderModel.findByIdAndUpdate(orderId,{$addToSet:{paymentIds:paymentId}},{session})
+    async saveToPaymentIdsWithSession(orderId: string | Types.ObjectId, paymentId: string | Types.ObjectId, session: ClientSession) {
+        await this.orderModel.findByIdAndUpdate(orderId, { $addToSet: { paymentIds: paymentId } }, { session })
     }
 
     async getOrdersByUser(
@@ -192,7 +218,7 @@ export class OrderService {
             sortOrder = 'acs',
         } = dto;
 
-        let filter: any = { userID: new Types.ObjectId(userId)  };
+        let filter: any = { userID: new Types.ObjectId(userId) };
         if (statuses && statuses.length > 0) {
             filter.status = { $in: statuses };
         }
@@ -218,7 +244,10 @@ export class OrderService {
 
         // Map sang OrderRespondDto
         const data = await Promise.all(
-            (orders as Order[]).map(async (order) => OrderMapper.toRespondDto(order))
+            (orders as OrderDocument[]).map(async (order) => {
+                const latestLog = await this.orderLogService.getLatest(order._id);
+                return OrderMapper.toRespondDto(order, latestLog)
+            })
         );
 
         const hasNext = page * limit < total;
@@ -274,7 +303,7 @@ export class OrderService {
 
         // Map sang OrderRespondDto
         const data = await Promise.all(
-            (orders as Order[]).map(async (order) => OrderMapper.toRespondDto(order))
+            (orders as Order[]).map(async (order) => OrderMapper.toRespondDto(order, null))
         );
 
         const hasNext = page * limit < total;
@@ -294,7 +323,7 @@ export class OrderService {
 
 
 
-    async updateOrderStatus(orderId: string, nextStatus: OrderStatus, userId: string, role?: UserRole): Promise<any> {
+    async updateOrderStatus(orderId: string, nextStatus: OrderStatus, userId: string, role: UserRole.ADMIN | UserRole.USER): Promise<any> {
         if (!role) throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
         const order = await this.orderModel.findById(orderId);
         if (!order) {
@@ -315,33 +344,60 @@ export class OrderService {
         if (!allowedRoles.includes(role)) {
             throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
         }
+        if (nextStatus == OrderStatus.CANCELLED) {
+            await this.orderLogService.createLog({
+                action: OrderAction.CANCEL_ORDER,
+                orderId: order._id.toString(),
+                performed_by: role,
+            });
+            await this.searchAvailablePaymentAndSetQueueToRefund(order._id);
+            if (order && order.voucherID) {
+                await this.voucherService.cancelVoucherUsage(order.voucherID, order.userID, order._id);
+            }
+        }
         order.status = nextStatus;
         await order.save();
         return order;
     }
 
 
-    async systemUpdateOrderStatus(orderId: string | Types.ObjectId, nextStatus: OrderStatus): Promise<any> {
+    async systemUpdateOrderStatus(orderId: string | Types.ObjectId, nextStatus: OrderStatusSystem): Promise<any> {
 
         log(orderId)
-        const order = await this.orderModel.findById(orderId);
+        const order = await this.orderModel.findById(orderId) as OrderDocument;
         console.log(order);
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-
-        const allowedNextStatuses = OrderStatusTransitionMap[order.status];
-        if (!allowedNextStatuses.includes(nextStatus)) {
-            throw new AppException(`Không thể chuyển trạng thái từ ${order.status} sang ${nextStatus}`, 400);
+        order.status = nextStatus;
+        const action = statusToActionMap[nextStatus];
+        if (!action) {
+            throw new Error(`No matching OrderAction for status: ${order.status}`);
+        }
+        await order.save();
+        if (nextStatus == OrderStatus.CANCELLED) {
+            await this.searchAvailablePaymentAndSetQueueToRefund(order._id)
         }
 
-        order.status = nextStatus;
-        await order.save();
+
+        await this.orderLogService.createLog({
+            action: action,
+            orderId: order._id.toString(),
+            performed_by: 'SYSTEM',
+        })
         log(order)
         return order;
     }
 
-
+    private async searchAvailablePaymentAndSetQueueToRefund(orderId: Types.ObjectId) {
+        const availableRefundAblePaymentId = await this.paymentService.getAvailablePaymentIdThatPaidByOrderId(orderId)
+        if (availableRefundAblePaymentId) {
+            log("Đơn hàng " + availableRefundAblePaymentId + " sẽ đẩy vào queue")
+            // await this.redisService.set(`refund:payment:${orderId}`, availableRefundAblePaymentId, 60 * 60)
+        } else {
+            log("Không có đơn hàng khả dụng")
+        }
+    }
 
 
 
@@ -358,19 +414,21 @@ export class OrderService {
         order.status = OrderStatus.CONFIRMED;
         await order.save();
 
-        return OrderMapper.toRespondDto(order);
+        return OrderMapper.toRespondDto(order, null);
     }
 
-    async calculateOrderPricePreview(dto: CalculateOrderPriceReqDto) {
+    async calculateOrderPricePreview(dto: CalculateOrderPriceReqDto,userId:string) {
         let productTotal = 0;
         let discount = 0;
+        let productIds: Types.ObjectId[] = [];
         for (const item of dto.orderItems) {
             const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity);
             productTotal += itemData.promotionalPrice * itemData.quantity || 0;
+            productIds.push(new Types.ObjectId(itemData.productId));
         }
-        // Giả sử có hàm tính giảm giá từ voucher
-        if (dto.voucherCode) {
-            discount = await this.getVoucherDiscount(dto.voucherCode, productTotal);
+
+        if (dto.voucherCode && userId) {
+            discount = await this.getVoucherDiscount(dto.voucherCode, productTotal, productIds, userId);
         }
         const shippingFee = await this.caculateShippingFee();
         const finalTotal = productTotal - discount + shippingFee;
@@ -382,10 +440,25 @@ export class OrderService {
         };
     }
 
-    // Dummy function for voucher discount
-    private async getVoucherDiscount(voucherCode: string, productTotal: number): Promise<number> {
-        // TODO: Thay bằng logic thực tế
-        return 0;
+    // Tính giảm giá voucher 
+    private async getVoucherDiscount(voucherCode: string, productTotal: number, productIds: Types.ObjectId[], userId: string): Promise<number> {
+        // Tìm voucher theo code
+        const voucher = await this.voucherService['voucherModel'].findOne({ code: voucherCode });
+        if (!voucher) return 0;
+        // Kiểm tra user đã lưu voucher chưa và chưa dùng
+        const voucherUser = await this.voucherService['voucherUserModel'].findOne({ voucher_id: voucher._id, user_id: new Types.ObjectId(userId) });
+        if (!voucherUser) return 0;
+        // Tính discount
+        try {
+            return await this.voucherService.checkOrderAndCalculateDiscount(
+                voucher,
+                productTotal,
+                productIds,
+                new Types.ObjectId(userId)
+            );
+        } catch {
+            return 0;
+        }
     }
 
 

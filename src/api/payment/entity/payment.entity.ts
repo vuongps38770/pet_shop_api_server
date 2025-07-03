@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { PaymentPurpose } from '../models/payment-purpose.enum';
 
-export type PaymentDocument = Payment & Document;
+export type PaymentDocument = Payment & Document<Types.ObjectId>;
 
 @Schema({ timestamps: true })
 export class Payment {
@@ -36,6 +36,9 @@ export class Payment {
 
   @Prop({ required: true })
   gateway_code?: string;
+
+  @Prop({})
+  gateway_trans_id:number;
 
   @Prop({ required: true })
   transactionId: string;

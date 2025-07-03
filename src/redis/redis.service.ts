@@ -6,7 +6,7 @@ import { log } from 'console';
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
-  
+
   constructor(
     @Inject(RedisClient) private redis: Redis
   ) { }
@@ -19,7 +19,7 @@ export class RedisService {
       ),
     ]);
   }
-  
+
   private async checkReady(): Promise<void> {
     try {
       log('checking');
@@ -35,7 +35,13 @@ export class RedisService {
 
   async set(key: string, value: any, ttl?: number): Promise<void> {
     await this.checkReady();
-    const data = typeof value === 'object' ? JSON.stringify(value) : value;
+    const isObject = typeof value === 'object';
+    const data = isObject ? JSON.stringify(value) : value;
+
+    this.logger.log(
+      `Redis SET key: "${key}", TTL: ${ttl ?? 'no TTL'}, Type: ${isObject ? 'JSON' : 'string'}, Value: ${isObject ? JSON.stringify(value).slice(0, 100) + '...' : value}`
+    );
+
     if (ttl) {
       await this.redis.set(key, data, 'EX', ttl);
     } else {

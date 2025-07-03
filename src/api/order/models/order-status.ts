@@ -1,4 +1,5 @@
 import { UserRole } from "src/api/auth/models/role.enum";
+import { OrderAction } from "src/api/order-log/models/order-action.enum";
 
 export enum OrderStatus {
     NEWORDER = "NEWORDER",              // Đơn hàng mới tạo
@@ -12,9 +13,40 @@ export enum OrderStatus {
     CANCELLED = "CANCELLED",         // Đơn hàng đã bị hủy
     RETURNED = "RETURNED",           // Khách đã trả hàng
     FAILED = "FAILED",               // Giao hàng thất bại
-    REFUNDED = "REFUNDED"            // Đã hoàn tiền
+    REFUNDED = "REFUNDED",           // Đã hoàn tiền
 }
 
+
+// quy định các type cho system đc chuyển
+export const SYSTEM_STATUSES = [
+    OrderStatus.REFUNDED,
+    OrderStatus.RETURNED,
+    OrderStatus.RECEIVED,
+    OrderStatus.CANCELLED,
+    OrderStatus.PAYMENT_SUCCESSFUL,
+    OrderStatus.NEWORDER
+] as const;
+export type OrderStatusSystem = typeof SYSTEM_STATUSES[number];
+
+// map các loại status để ghi action log
+export const statusToActionMap: Record<OrderStatusSystem, OrderAction>= {
+    [OrderStatus.CANCELLED]: OrderAction.CANCEL_ORDER,
+    [OrderStatus.REFUNDED]: OrderAction.REFUND_ORDER,
+    [OrderStatus.RETURNED]: OrderAction.RETURN_ORDER,
+    [OrderStatus.RECEIVED]: OrderAction.COMPLETE_ORDER,
+    [OrderStatus.PAYMENT_SUCCESSFUL]: OrderAction.CONFIRM_PAYMENT,
+    [OrderStatus.NEWORDER]:OrderAction.CREATE_ORDER,
+};
+// export enum OrderAction {
+//   CANCEL_ORDER = "CANCEL_ORDER",
+//   CREATE_ORDER = "CREATE_ORDER",
+//   CONFIRM_ORDER = "CONFIRM_ORDER",
+//   SHIPPING_ORDER = "SHIPPING_ORDER",
+//   CONFIRM_PAYMENT ="CONFIRM_PAYMENT",
+//   COMPLETE_ORDER = "COMPLETE_ORDER",
+//   RETURN_ORDER = "RETURN_ORDER",
+//   REFUND_ORDER = "REFUND_ORDER"
+// }
 export const OrderStatusTransitionMap: Record<OrderStatus, OrderStatus[]> = {
     [OrderStatus.NEWORDER]: [OrderStatus.WAIT_FOR_PAYMENT, OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
     [OrderStatus.WAIT_FOR_PAYMENT]: [OrderStatus.PAYMENT_SUCCESSFUL, OrderStatus.CANCELLED],
@@ -38,12 +70,13 @@ export const OrderStatusPermissionMap: Record<OrderStatus, (UserRole)[]> = {
     [OrderStatus.SHIPPED]: [UserRole.ADMIN],
     [OrderStatus.DELIVERED]: [UserRole.ADMIN],
     [OrderStatus.RECEIVED]: [UserRole.ADMIN],
-    [OrderStatus.CANCELLED]: [UserRole.USER, UserRole.ADMIN], 
+    [OrderStatus.CANCELLED]: [UserRole.USER, UserRole.ADMIN],
     [OrderStatus.REFUNDED]: [UserRole.ADMIN],
     [OrderStatus.RETURNED]: [UserRole.USER, UserRole.ADMIN],
     [OrderStatus.FAILED]: [UserRole.ADMIN],
     [OrderStatus.NEWORDER]: [], //hệ thống
 };
+
 // NEWORDER
 //    ↓
 // WAIT_FOR_PAYMENT
@@ -62,11 +95,11 @@ export const OrderStatusPermissionMap: Record<OrderStatus, (UserRole)[]> = {
 
 // NEWORDER
 //    ↓
-//CONFIRMED                     
-//    ↓                     
-// PROCESSING              
-//    ↓                     
-// SHIPPED              
+//CONFIRMED
+//    ↓
+// PROCESSING
+//    ↓
+// SHIPPED
 //    ↓
 // DELIVERED
 

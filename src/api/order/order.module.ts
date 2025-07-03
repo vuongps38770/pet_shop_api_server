@@ -8,6 +8,10 @@ import { AddressSchema } from '../adress/entity/address.entity';
 import { OrderSchema } from './entity/order.entity';
 import { AddressModule } from '../adress/address.module';
 import { PaymentModule } from '../payment/payment.module';
+import { CartModule } from '../cart/cart.module';
+import { OrderLogModule } from '../order-log/order-log.module';
+import { RedisModule } from 'src/redis/redis.module';
+import { VoucherModule } from '../voucher/voucher.module';
 
 @Module({
   controllers: [OrderController],
@@ -22,7 +26,11 @@ import { PaymentModule } from '../payment/payment.module';
     OrderDetailModule,
     ProductVariantModule,
     AddressModule,
+    CartModule,
     forwardRef(() => PaymentModule),
+    OrderLogModule,
+    RedisModule,
+    VoucherModule
   ],
   exports: [
     MongooseModule,

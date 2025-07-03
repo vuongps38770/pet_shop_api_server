@@ -23,3 +23,39 @@
     }
   }
 }
+
+
+// db.orders.updateMany(
+//   { userID: { $type: "string" } },
+//   [
+//     {
+//       $set: {
+//         userID: { $toObjectId: "$userID" }
+//       }
+//     }
+//   ]
+// )
+
+
+// db.orders.updateMany(
+//   { orderDetailIds: { $exists: true, $ne: [] } },
+//   [
+//     {
+//       $set: {
+//         orderDetailIds: {
+//           $map: {
+//             input: "$orderDetailIds",
+//             as: "id",
+//             in: {
+//               $cond: {
+//                 if: { $eq: [{ $type: "$$id" }, "string"] },
+//                 then: { $toObjectId: "$$id" },
+//                 else: "$$id"
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   ]
+// )

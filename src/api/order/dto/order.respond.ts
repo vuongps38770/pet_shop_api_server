@@ -1,3 +1,5 @@
+import { OrderLogDocument } from "src/api/order-log/entity/order-log.entity";
+
 export class OrderRespondDto {
     _id: string;
     userID: string;
@@ -26,6 +28,7 @@ export class OrderRespondDto {
     updatedAt:Date;
     sku:string;
     paymentIds:string[]
+    latestLog:OrderLogDocument|null
 }
 
 export class OrderDetailResDto {

@@ -29,7 +29,7 @@ export class OrderAutoCancelService {
         status: OrderStatus.WAIT_FOR_PAYMENT,
         expiredPaymentDate: { $lt: now }
       },
-      { $set: { status: OrderStatus.CANCELLED } }
+      { $set: { status: OrderStatus.CANCELLED} }
     );
     // Trả lại stock cho từng đơn
     for (const order of expiredOrders) {

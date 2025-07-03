@@ -1,8 +1,9 @@
+import { OrderLogDocument } from "src/api/order-log/entity/order-log.entity";
 import { OrderDetailResDto, OrderRespondDto } from "../dto/order.respond";
 
 
 export class OrderMapper {
-    static toRespondDto(order: any): OrderRespondDto {
+    static toRespondDto(order: any,latestLog:OrderLogDocument|null): OrderRespondDto {
         const orderDetailItems: OrderDetailResDto[] = (order.orderDetailIds as any[]).map((detail: any): OrderDetailResDto => ({
             _id: detail._id?.toString(),
             productId: detail.productId?.toString(),
@@ -31,7 +32,8 @@ export class OrderMapper {
             updatedAt: order.updatedAt,
             productPrice: order.productPrice,
             sku: order.sku,
-            paymentIds:order.paymentIds
+            paymentIds:order.paymentIds,
+            latestLog:latestLog
         };
     }
 }

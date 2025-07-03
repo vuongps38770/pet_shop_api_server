@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { OrderAction } from '../models/order-action.enum';
 
 export type OrderLogDocument = OrderLog & Document;
 
@@ -14,13 +15,13 @@ export class OrderLog {
             return value;
         }
     })
-    ordeId: Types.ObjectId;
+    orderId: Types.ObjectId;
+
+    @Prop({ required: true ,enum:OrderAction})
+    action: OrderAction;
 
     @Prop({ required: true })
-    action: string;
-
-    @Prop({ required: true })
-    performed_by: 'ADMIN' | 'USER';
+    performed_by: 'ADMIN' | 'USER' |'SYSTEM';
 
     @Prop()
     note?: string;
