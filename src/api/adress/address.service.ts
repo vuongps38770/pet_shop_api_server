@@ -6,17 +6,24 @@ import axios from "axios";
 import { DistrictDto, ProvinceDto } from "./dto/location-respond.dto";
 import { AddressMapper } from "./mappers/location.mapper";
 import { AddressCreateRequestDto, AddressEditRequestDto } from "./dto/address-request.dto";
+import https from 'https';
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class AddressService {
+    private ADDRESS_API_URL: string;
     constructor(
-        @InjectModel("Address") private readonly addressModel: Model<Address>
-    ) { }
-    private readonly ADDRESS_API_URL = "https://provinces.open-api.vn/api/";
+        @InjectModel("Address") private readonly addressModel: Model<Address>,
+        private readonly configService: ConfigService
+    ) { this.ADDRESS_API_URL = this.configService.getOrThrow<string>('PROVINCE_URL'); }
+
 
     async getProvinceList() {
         try {
-            const res = await axios.get(this.ADDRESS_API_URL + "p/")
+            // const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+            const res = await axios.get(this.ADDRESS_API_URL + "p/", {
+                //   httpsAgent,
+            })
             return res.data.map((item: any) =>
                 AddressMapper.toStandardProvince(item)
             ) as ProvinceDto[];
