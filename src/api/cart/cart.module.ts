@@ -4,6 +4,7 @@ import { CartSchema } from "./entity/cart.entity";
 import { CartController } from "./cart.controller";
 import { CartService } from "./cart.service";
 import { ProductModule } from "../products/product.module";
+import { ProductVariantModule } from "../product-variant/product-variant.module";
 
 @Module({
     controllers:[CartController],
@@ -15,7 +16,7 @@ import { ProductModule } from "../products/product.module";
                 schema:CartSchema
             }
         ]),
-        ProductModule
+        ProductVariantModule
     ],
     providers:[CartService],
 })

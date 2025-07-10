@@ -8,18 +8,26 @@ import { CartRespondDto } from "./dto/cart-repspond-respond.dto";
 import { ProductService } from "../products/product.service";
 import { CartRespondMapper } from "./mappers/cart-respond-mapper";
 import { AppException } from "src/common/exeptions/app.exeption";
+import { ProductVariantService } from "../product-variant/product-variant.service";
 
 
 @Injectable()
 export class CartService {
     constructor(
         @InjectModel("cart") private readonly cartModel: Model<Cart>,
-        private readonly productService: ProductService
+        private readonly productVariantService: ProductVariantService
     ) { }
 
 
     async addToCart(userId: string, cartdto: CartRequestCreateDto): Promise<CartRespondDto[]> {
-        const existCart = await this.cartModel.findOne({ userId, productVariantId: new Types.ObjectId(cartdto.productVariantId)  })
+        // const variant = await this.productVariantService.findById(cartdto.productVariantId);
+        // if (!variant) {
+        //     throw new AppException("Không tìm thấy sản phẩm!", HttpStatus.NOT_FOUND);
+        // }
+        // if (cartdto.quantity > variant.stock) {
+        //     throw new AppException("Số lượng vượt quá tồn kho!", HttpStatus.BAD_REQUEST);
+        // }
+        const existCart = await this.cartModel.findOne({ userId, productVariantId: new Types.ObjectId(cartdto.productVariantId) })
         if (existCart) {
             existCart.quantity = cartdto.quantity;
             if (existCart.quantity < 1) {
@@ -112,14 +120,14 @@ export class CartService {
             throw new AppException("Invalid number for cart!")
         }
         const cartItem = await this.cartModel.findByIdAndUpdate(cartId, { quantity: quantity }, {
-            new: true,            
-            runValidators: true,   
+            new: true,
+            runValidators: true,
         })
         if (!cartItem) {
             throw new AppException("Cart item not found!", HttpStatus.NOT_FOUND)
         }
     }
-    async removeManyCarts(cartIds:string[]){
-        await this.cartModel.deleteMany({_id:{ $in: cartIds}})
+    async removeManyCarts(cartIds: string[]) {
+        await this.cartModel.deleteMany({ _id: { $in: cartIds } })
     }
 }
