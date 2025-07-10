@@ -24,6 +24,8 @@ export class FirebaseAdminService implements OnModuleInit {
     }
 
     async sendNotificationToTokens(tokens: string[], payload: admin.messaging.MessagingPayload) {
+        console.log(tokens);
+
         for (const token of tokens) {
             try {
                 await admin.messaging().send({
@@ -32,11 +34,13 @@ export class FirebaseAdminService implements OnModuleInit {
                     data: payload.data,
                 });
             } catch (err) {
+                console.log(err);
                 if (
                     err.code === 'messaging/invalid-registration-token' ||
                     err.code === 'messaging/registration-token-not-registered'
                 ) {
                     // Xóa token hỏng 
+
 
                 }
             }

@@ -35,6 +35,10 @@ import { NotificationModule } from './api/notification/notification.module';
 import { BroadcastCronService } from './jobs/broadcast-queue';
 import { LoggerMiddleware } from './middleware/route-logger.middleware';
 import { VoucherModule } from './api/voucher/voucher.module';
+import { BullModule } from '@nestjs/bull';
+import { RedisQueueName } from './redis/constants/redis-queue.constant';
+import Redis from 'ioredis';
+import { RefundProcessor } from './worker/refund.prossesor';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -52,6 +56,22 @@ import { VoucherModule } from './api/voucher/voucher.module';
       signOptions: { expiresIn: '15m' },
 
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        createClient: (type) => {
+          const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+          const isSecure = redisUrl.startsWith('rediss://');
+          return new Redis(redisUrl, {
+            tls: isSecure ? {} : undefined,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+          });
+        }
+      }),
+    }),
+    BullModule.registerQueue({ name: RedisQueueName.REFUND_QUEUE }),
     //module cho api
     // AuthModule,
     AuthModule,
@@ -104,7 +124,8 @@ import { VoucherModule } from './api/voucher/voucher.module';
     },
     OrderAutoCancelService,
     PaymentAutoCheckService,
-    BroadcastCronService
+    BroadcastCronService,
+    RefundProcessor
   ],
 
 })
@@ -114,7 +135,7 @@ export class AppModule implements OnModuleInit {
   constructor(@InjectConnection() private readonly connection: Connection) { }
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*'); 
+    consumer.apply(LoggerMiddleware).forRoutes('*');
   }
 
   async onModuleInit() {
