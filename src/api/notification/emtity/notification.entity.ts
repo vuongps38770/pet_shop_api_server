@@ -25,7 +25,7 @@ export class Notification {
     message: string;
 
     @Prop({ required: true })
-    type: 'order' | 'promo' | 'system' | string;
+    type: 'order' | 'promo' | 'system' | 'general'| string;
 
     @Prop()
     icon?: string;

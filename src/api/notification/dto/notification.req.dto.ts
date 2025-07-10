@@ -54,4 +54,8 @@ export class GetUserNotificationDto {
   @IsOptional()
   @IsNumberString()
   limit?: string;
+
+  @IsOptional()
+  @IsString()
+  type:'order' | 'promo' | 'system' | 'general'|string
 }

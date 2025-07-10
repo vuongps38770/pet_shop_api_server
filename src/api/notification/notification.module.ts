@@ -8,6 +8,7 @@ import { NotificationSchema } from './emtity/notification.entity';
 import { NotificationRead, NotificationReadSchema } from './emtity/notification-read.entity';
 import { RedisModule } from 'src/redis/redis.module';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   controllers: [NotificationController],
@@ -26,7 +27,8 @@ import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
       }
     ]),
     RedisModule,
-    CloudinaryModule
+    CloudinaryModule,
+    UsersModule
   ],
 
   exports: [NotificationService],
