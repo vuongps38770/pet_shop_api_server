@@ -11,6 +11,7 @@ export enum DiscountType {
 export enum VoucherApplyType {
   ORDER = 'order',
   PRODUCT = 'product',
+  DELIVERY = 'delivery'
 }
 
 export enum VoucherErrorCode {
@@ -48,9 +49,6 @@ export class Voucher {
 
   @Prop({ type: Number, required: true })
   min_order_value: number;
-
-  @Prop({ type: Number })
-  max_order_value?: number;
 
   @Prop({ type: Date, required: true })
   start_date: Date;

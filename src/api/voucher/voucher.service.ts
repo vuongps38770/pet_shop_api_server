@@ -7,6 +7,9 @@ import { BadRequestException } from '@nestjs/common';
 import { Product } from '../products/entity/product.entity';
 import { VoucherErrorCode } from './entity/voucher.entity';
 import { AppException } from 'src/common/exeptions/app.exeption';
+import { VoucherUsage, VoucherUsageDocument } from './entity/voucher-usage.entity';
+import { log } from 'console';
+import { match } from 'assert';
 
 // Hàm sinh mã voucher ngẫu nhiên
 function generateVoucherCode(length = 8) {
@@ -23,8 +26,9 @@ export class VoucherService {
   constructor(
     @InjectModel(Voucher.name) private voucherModel: Model<VoucherDocument>,
     @InjectModel(VoucherUser.name) private voucherUserModel: Model<VoucherUserDocument>,
+    @InjectModel(VoucherUsage.name) private voucherUserUsage: Model<VoucherUsageDocument>,
     // Nếu cần connection: @InjectConnection() private readonly connection: Connection
-  ) {}
+  ) { }
 
   /**
    * Kiểm tra đơn hàng có áp dụng được voucher không và tính số tiền giảm giá
@@ -58,10 +62,6 @@ export class VoucherService {
     if (orderTotal < voucher.min_order_value) {
       throw new AppException('Không đủ giá trị đơn hàng tối thiểu để áp dụng voucher', 400, VoucherErrorCode.MIN_ORDER_NOT_MET);
     }
-    // Kiểm tra giá trị đơn hàng tối đa (nếu có)
-    if (voucher.max_order_value && orderTotal > voucher.max_order_value) {
-      throw new AppException('Giá trị đơn hàng vượt quá mức cho phép để áp dụng voucher', 400, VoucherErrorCode.MAX_ORDER_EXCEEDED);
-    }
     // Nếu voucher áp dụng cho sản phẩm, kiểm tra sản phẩm hợp lệ
     if (voucher.apply_type === VoucherApplyType.PRODUCT) {
       if (!Array.isArray(voucher.product_ids) || voucher.product_ids.length === 0) {
@@ -84,6 +84,8 @@ export class VoucherService {
     if (voucher.discount_type === DiscountType.PERCENT) {
       discount = (orderTotal * voucher.discount_value) / 100;
       if (voucher.max_discount) {
+        console.log(voucher.max_discount, discount);
+
         discount = Math.min(discount, voucher.max_discount);
       }
       if (voucher.discount_value > 99) {
@@ -94,7 +96,7 @@ export class VoucherService {
       // Nếu là fixed và apply_type là PRODUCT thì discount_value không được vượt quá giá thấp nhất của các sản phẩm được áp dụng
       if (voucher.apply_type === VoucherApplyType.PRODUCT && productIds && productIds.length > 0) {
         // Lấy giá thấp nhất của các sản phẩm
-        // (Giả sử bạn có thể lấy giá sản phẩm ở đây nếu cần, hoặc truyền vào)
+        // (lấy giá sản phẩm ở đây nếu cần, hoặc truyền vào)
         // Nếu discount > giá thấp nhất thì ném lỗi
         // throw new AppException('Giá trị giảm giá không được vượt quá giá thấp nhất của sản phẩm áp dụng', 400, VoucherErrorCode.FIXED_OVER_PRODUCT_PRICE);
       }
@@ -128,10 +130,8 @@ export class VoucherService {
     const session = await this.voucherModel.db.startSession();
     session.startTransaction();
     try {
-      await this.voucherUserModel.create({ voucher_id: voucherId, user_id: userId, used_at: null }, { session });
-      await this.voucherModel.updateOne(
-        { _id: voucherId },
-        { $inc: { used: 1 } },
+      await this.voucherUserModel.create(
+        [{ voucher_id: voucherId, user_id: userId }],
         { session }
       );
       await session.commitTransaction();
@@ -143,19 +143,6 @@ export class VoucherService {
     }
   }
 
-  /**
-   * Đánh dấu voucher-user đã dùng (set used_at, order_id), không tăng used nữa
-   */
-  async markVoucherUsed(
-    voucherId: Types.ObjectId,
-    userId: Types.ObjectId,
-    orderId?: Types.ObjectId,
-  ): Promise<void> {
-    await this.voucherUserModel.updateOne(
-      { voucher_id: voucherId, user_id: userId, used_at: null },
-      { $set: { used_at: new Date(), order_id: orderId } }
-    );
-  }
 
   /**
    * Huỷ voucher đã dùng (reset used_at, order_id), không giảm used
@@ -165,10 +152,11 @@ export class VoucherService {
     userId: Types.ObjectId,
     orderId?: Types.ObjectId,
   ): Promise<void> {
-    await this.voucherUserModel.updateOne(
-      { voucher_id: voucherId, user_id: userId, order_id: orderId },
-      { $set: { used_at: null, order_id: null } }
-    );
+    await this.voucherUserUsage.deleteOne({
+      voucher_id: voucherId,
+      user_id: userId,
+      order_id: orderId
+    })
   }
 
   /**
@@ -196,7 +184,7 @@ export class VoucherService {
       // Lấy giá thấp nhất của các sản phẩm
       const products = await this.voucherModel.db.collection('products').find({ _id: { $in: dto.product_ids } }).toArray();
       if (!products.length) throw new BadRequestException('Không tìm thấy sản phẩm áp dụng');
-      const minPrice = Math.min(...products.map((p: any) => p.minPromotionalPrice ||  0));
+      const minPrice = Math.min(...products.map((p: any) => p.minPromotionalPrice || 0));
       if (dto.discount_value > minPrice) {
         throw new BadRequestException('Giá trị giảm giá không được vượt quá giá thấp nhất của sản phẩm áp dụng');
       }
@@ -223,14 +211,19 @@ export class VoucherService {
   /**
    * Lấy danh sách voucher cho admin, có phân trang
    */
-  async getVouchersForAdmin(page = 1, limit = 10): Promise<{data: Voucher[], total: number}> {
+  async getVouchersForAdmin(page = 1, limit = 10): Promise<{ data: Voucher[], total: number, hasNextPage: boolean }> {
     const skip = (page - 1) * limit;
+
     const [data, total] = await Promise.all([
       this.voucherModel.find().sort({ start_date: -1 }).skip(skip).limit(limit).exec(),
       this.voucherModel.countDocuments().exec(),
     ]);
-    return { data, total };
+
+    const hasNextPage = page * limit < total;
+
+    return { data, total, hasNextPage };
   }
+
 
   /**
    * Tắt voucher (set is_active=false)
@@ -244,8 +237,16 @@ export class VoucherService {
   }
 
   /**
-   * Lấy danh sách voucher đã lưu của user, có lọc trạng thái và phân trang
+   * Bật voucher (set is_active=true)
    */
+  async activateVoucher(voucherId: string): Promise<Voucher | null> {
+    return this.voucherModel.findByIdAndUpdate(
+      voucherId,
+      { is_active: true },
+      { new: true }
+    ).exec();
+  }
+
   async getSavedVouchersForUser(
     userId: Types.ObjectId,
     status: string,
@@ -254,43 +255,501 @@ export class VoucherService {
   ): Promise<any> {
     const skip = (page - 1) * limit;
     const now = new Date();
-    let data: any[] = [];
-    let total = 0;
+
+  
+
     if (status === 'not_collected') {
-      // Lấy voucher chưa thu thập
-      const collectedIds = await this.voucherUserModel.find({ user_id: userId }).distinct('voucher_id');
-      const query = { _id: { $nin: collectedIds }, is_active: true, end_date: { $gt: now } };
-      total = await this.voucherModel.countDocuments(query);
-      data = await this.voucherModel.find(query).skip(skip).limit(limit).exec();
-    } else if (status === 'collected_unused') {
-      // Đã thu thập, chưa dùng, còn hạn
-      const voucherUsers = await this.voucherUserModel.find({ user_id: userId, used_at: null })
-        .populate({ path: 'voucher_id', match: { is_active: true, end_date: { $gt: now } } })
-        .skip(skip).limit(limit);
-      data = voucherUsers.filter(vu => vu.voucher_id).map(vu => vu.voucher_id);
-      total = await this.voucherUserModel.countDocuments({ user_id: userId, used_at: null });
-    } else if (status === 'collected_used') {
-      // Đã thu thập, đã dùng
-      const voucherUsers = await this.voucherUserModel.find({ user_id: userId, used_at: { $ne: null } })
-        .populate('voucher_id')
-        .skip(skip).limit(limit);
-      data = voucherUsers.map(vu => vu.voucher_id);
-      total = await this.voucherUserModel.countDocuments({ user_id: userId, used_at: { $ne: null } });
-    } else if (status === 'expired_unused') {
-      // Đã thu thập, chưa dùng, đã hết hạn
-      const voucherUsers = await this.voucherUserModel.find({ user_id: userId, used_at: null })
-        .populate({ path: 'voucher_id', match: { end_date: { $lte: now } } })
-        .skip(skip).limit(limit);
-      data = voucherUsers.filter(vu => vu.voucher_id).map(vu => vu.voucher_id);
-      total = await this.voucherUserModel.countDocuments({ user_id: userId, used_at: null });
-    } else {
-      // Mặc định trả về tất cả đã thu thập
-      const voucherUsers = await this.voucherUserModel.find({ user_id: userId })
-        .populate('voucher_id')
-        .skip(skip).limit(limit);
-      data = voucherUsers.map(vu => vu.voucher_id);
-      total = await this.voucherUserModel.countDocuments({ user_id: userId });
+      let data = await this.notCollectedVouchers(userId, skip, limit, page, now)
+      return data
     }
-    return { data, total, page, limit };
+    else if (status === 'collected_unused') {
+      let raw = await this.collectedUseAbleVouchers(userId, skip, limit, page, now)
+      return raw
+    }
+    else if (status === 'collected_used') {
+      let raw = await this.usedVouchers(userId, skip, limit, page, now)
+      return raw
+    }
+    else if (status === 'expired_unused') {
+
+      let raw = await this.collectedAndExpiredUnusedVouchers(userId, skip, limit, page, now)
+      return raw
+    }
   }
+  async collectedAndExpiredUnusedVouchers(
+    userId: Types.ObjectId, skip: number,
+    limit: number, page: number, curentDate: Date
+
+  ) {
+    const pipeline = [
+      {
+        $match: { user_id: userId }
+
+      },
+      {
+        $lookup: {
+          from: 'voucherusages',
+          let: { voucherId: '$voucher_id', userId: '$user_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$voucher_id', '$$voucherId'] },
+                    { $eq: ['$user_id', '$$userId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'usage'
+        }
+
+      },
+      {
+        $lookup: {
+          from: 'vouchers',
+          localField: 'voucher_id',
+          foreignField: '_id',
+          as: 'voucher'
+        }
+      },
+      { $unwind: '$voucher' },
+      {
+        $match: {
+          'usage.0': { $exists: false },
+          'voucher.end_date': { $lt: new Date() }
+        }
+      },
+      {
+        $group: {
+          _id: '$voucher._id',
+          voucher: { $first: '$voucher' }
+        }
+      },
+      {
+        $replaceRoot: { newRoot: '$voucher' }
+      }
+    ]
+    const totalResult = await this.voucherUserModel.aggregate([
+      ...pipeline,
+      { $count: 'total' },
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+    const data = await this.voucherUserModel.aggregate([
+      ...pipeline,
+      { $project: { saved: 0 } }, 
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+  async notCollectedVouchers(userId: Types.ObjectId, skip: number,
+    limit: number, page: number, curentDate: Date) {
+    const pipeline = [
+      {
+        $match: {
+          $and: [
+            { 'end_date': { $gt: curentDate } },
+            { 'is_active': { $eq: true } }
+          ]
+        },
+      },
+      {
+        $lookup: {
+          from: "voucherusers",
+          let: { voucherId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$voucher_id', '$$voucherId'] },
+                    { $eq: ['$user_id', userId] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'saved'
+        }
+      },
+      {
+        $match: {
+          'saved.0': { $exists: false },
+        }
+      },
+      {
+        $addFields:{
+          is_collected: false
+        }
+      }
+    ]
+    const totalResult = await this.voucherModel.aggregate([
+      ...pipeline,
+      { $count: 'total' },
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+    // Bước 3: Lấy dữ liệu đã phân trang
+    const data = await this.voucherModel.aggregate([
+      ...pipeline,
+      { $project: { saved: 0 } }, // ẩn trường saved
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+  async collectedUseAbleVouchers(userId: Types.ObjectId, skip: number,
+    limit: number, page: number, curentDate: Date) {
+    const pipeline = [
+      {
+        $match: {
+          user_id: userId
+        }
+      },
+      {
+        $lookup: {
+          from: 'vouchers',
+          localField: 'voucher_id',
+          foreignField: '_id',
+          as: 'voucher'
+        }
+      },
+      { $unwind: '$voucher' },
+      {
+        $match: {
+          $expr: {
+            $and: [
+              { $gt: ['$voucher.end_date', curentDate] },
+              { $eq: ['$voucher.is_active', true] },
+              { $gt: ['$voucher.quantity', '$voucher.used'] }
+            ]
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'voucherusages',
+          let: { voucherId: '$voucher._id', userId: '$user_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$voucher_id', '$$voucherId'] },
+                    { $eq: ['$user_id', '$$userId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'usage'
+        }
+      },
+      {
+        $addFields: {
+          usage_count: { $size: '$usage' }
+        }
+      },
+      {
+        $match: {
+          $expr: {
+            $or: [
+              { $not: ['$voucher.max_use_per_user'] },
+              { $lt: ['$usage_count', '$voucher.max_use_per_user'] }
+            ]
+          }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              '$voucher',
+              {
+                saved_at: '$saved_at',
+                usage_count: '$usage_count'
+              }
+            ]
+          }
+        }
+      }
+
+    ]
+
+
+    const totalResult = await this.voucherUserModel.aggregate([
+      ...pipeline,
+      { $count: 'total' },
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+
+    const data = await this.voucherUserModel.aggregate([
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+  async usedVouchers(userId: Types.ObjectId, skip: number,
+    limit: number, page: number, curentDate: Date) {
+    const pipeline = [
+      {
+        $match: { user_id: { $eq: userId } }
+      },
+      {
+        $lookup: {
+          from: 'vouchers',
+          foreignField: '_id',
+          localField: 'voucher_id',
+          as: 'voucher'
+        }
+      },
+      { $unwind: '$voucher' },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              '$voucher', {
+                used_at: '$used_at',
+                usage_id: '$_id'
+              }
+            ]
+          }
+        }
+      }
+
+
+    ]
+
+    const totalResult = await this.voucherUserUsage.aggregate([
+      ...pipeline,
+      { $count: 'total' },
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+
+    const data = await this.voucherUserUsage.aggregate([
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  async getAvailableVouchersForOrder(totalProductPrice: number, userId: Types.ObjectId) {
+    const now = new Date();
+
+    // Lấy tất cả voucher loại đơn hàng còn hoạt động và chưa hết hạn
+    const activeVouchers = await this.voucherModel.find({
+      is_active: true,
+      start_date: { $lte: now },
+      end_date: { $gte: now },
+      $expr: { $gt: ["$quantity", "$used"] },
+      min_order_value: { $lte: totalProductPrice },
+      apply_type: VoucherApplyType.ORDER
+    }).lean();
+
+    //cái này depcrated vì đã sửa db
+    const savedButUnusedVoucherIds = await this.voucherUserModel.find({
+      user_id: userId,
+      used_at: null
+    }).distinct('voucher_id');
+
+    //Lọc activeVoucher để lấy những cái đã lưu nhưng chưa dùng
+    const availableVouchers = await this.voucherUserModel.aggregate([
+      {
+        $match: { user_id: userId }
+      },                                          //loc cai da luu theu user id
+      {
+        $lookup: {
+          from: 'vouchers',
+          localField: 'voucher_id',
+          foreignField: '_id',
+          as: 'voucher'
+        }
+      },                                          //join bang voucher
+      {
+        $unwind: '$voucher'
+      },
+      {
+        $match: {
+          $and: [
+            { 'voucher.end_date': { $gt: now } },
+            { 'voucher.is_active': { $eq: true } }
+          ]
+        }                                          //jloc cai nao con han sd
+      },
+      {
+        $lookup: {
+          from: 'voucherusages',
+          let: { voucherId: '$voucher._id', userId: '$user_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$voucher_id', '$$voucherId'] },
+                    { $eq: ['$user_id', '$$userId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'usages'
+        }
+      },
+      {
+        $addFields: {
+          usage_count: { $size: '$usages' }
+        }
+      },
+      {
+        $match: {
+          $expr: {
+            $or: [
+              { $not: ['$voucher.max_use_per_user'] },
+              { $lt: ['$usage_count', '$voucher.max_use_per_user'] }
+            ]
+          }
+        }
+
+      },
+      {
+        $addFields: {
+          usage_exceeded: {
+            $cond: [
+              { $ifNull: ['$voucher.max_use_per_user', false] },
+              { $gte: ['$usage_count', '$voucher.max_use_per_user'] },
+              false
+            ]
+          }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              '$voucher', {
+                usage_count: '$usage_count'
+              }
+            ]
+          }
+        }
+      }
+    ])
+
+    // Tính toán số tiền giảm giá cho từng voucher và sắp xếp
+    // const vouchersWithDiscount = await Promise.all(
+    //   availableVouchers.map(async (voucher) => {
+    //     try {
+    //       const discountAmount = await this.CalculateDiscount(
+    //         voucher,
+    //         totalProductPrice,
+    //       );
+
+    //       return {
+    //         ...voucher,
+    //         calculatedDiscount: discountAmount,
+    //         discountPercentage: voucher.discount_type === DiscountType.PERCENT
+    //           ? voucher.discount_value
+    //           : (discountAmount / totalProductPrice) * 100
+    //       };
+    //     } catch (error) {
+    //       // Nếu voucher không áp dụng được thì bỏ qua
+    //       return null;
+    //     }
+    //   })
+    // );
+
+    // // Lọc bỏ voucher null và sắp xếp theo số tiền giảm nhiều nhất
+    // const sortedVouchers = vouchersWithDiscount
+    //   .filter(voucher => voucher !== null)
+    //   .sort((a, b) => b.calculatedDiscount - a.calculatedDiscount);
+
+    return availableVouchers;
+  }
+
+
+
+
+
+
+  async CalculateDiscount(
+    voucher: Voucher,
+    orderTotal: number,
+  ): Promise<number> {
+
+
+    let discount = 0;
+    if (voucher.discount_type === DiscountType.PERCENT) {
+      discount = (orderTotal * voucher.discount_value) / 100;
+      if (voucher.max_discount) {
+        console.log(voucher.max_discount, discount);
+
+        discount = Math.min(discount, voucher.max_discount);
+      }
+      if (voucher.discount_value > 99) {
+        throw new AppException('Giá trị phần trăm giảm giá không được vượt quá 99%', 400, VoucherErrorCode.PERCENT_OVER_LIMIT);
+      }
+    } else if (voucher.discount_type === DiscountType.FIXED) {
+      discount = voucher.discount_value;
+    }
+    return discount;
+  }
+
+
 }
+
+

@@ -24,10 +24,6 @@ export class VoucherCreateDto {
   @IsNumber()
   min_order_value: number;
 
-  @IsNumber()
-  @IsOptional()
-  max_order_value?: number;
-
   @IsDateString()
   start_date: string;
 

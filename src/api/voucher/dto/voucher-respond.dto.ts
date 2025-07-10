@@ -23,9 +23,6 @@ export class VoucherRespondDto {
   @ApiProperty()
   min_order_value: number;
 
-  @ApiProperty({ required: false })
-  max_order_value?: number;
-
   @ApiProperty()
   start_date: Date;
 

@@ -11,11 +11,8 @@ export class VoucherUser {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user_id: Types.ObjectId;
 
-  @Prop({ type: Date, required: true })
-  used_at: Date;
-
-  @Prop({ type: Types.ObjectId, ref: 'Order' })
-  order_id?: Types.ObjectId;
+  @Prop({ type: Date })
+  saved_at: Date;
 }
 
 export const VoucherUserSchema = SchemaFactory.createForClass(VoucherUser); 
