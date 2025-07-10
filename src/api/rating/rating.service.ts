@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model, Types } from 'mongoose';
 import { Review } from './entity/rating.entity';
@@ -8,14 +8,15 @@ import { ProductVariant } from '../product-variant/entity/product-variant.entity
 import { Product } from '../products/entity/product.entity';
 import { OrderDetail } from '../order-detail/entity/order-detail.entity';
 import { log } from 'console';
+import Redis from 'ioredis';
 
 @Injectable()
 export class RatingService {
   constructor(
     @InjectModel(Review.name) private reviewModel: Model<Review>,
     @InjectModel("Product") private readonly productModel: Model<Product>,
-    @InjectModel('OrderDetail') private readonly orderDetailModel: Model<OrderDetail>
-
+    @InjectModel('OrderDetail') private readonly orderDetailModel: Model<OrderDetail>,
+    @Inject('REDIS_RATING') private readonly redis: Redis
   ) { }
 
   async create(user_id: string, createDto: CreateRatingDto) {
@@ -25,19 +26,92 @@ export class RatingService {
       product_variant_id: new Types.ObjectId(createDto.productId),
     });
     if (existed) throw new Error('Bạn đã đánh giá sản phẩm này!');
-    return this.reviewModel.create({
+    const newReview = await this.reviewModel.create({
       ...createDto,
       user_id: new Types.ObjectId(user_id),
       productId: new Types.ObjectId(createDto.productId),
     });
+    const productId = createDto.productId;
+    const redisKey = `product_rating:${productId}`;
+    const rating = parseFloat(createDto.rating.toString());
+
+    const ratingData = await this.redis.hgetall(redisKey);
+
+    if (!ratingData || !ratingData.average) {
+      // Nếu chưa có Redis, fallback DB
+      const agg = await this.reviewModel.aggregate([
+        { $match: { productId: new Types.ObjectId(productId) } },
+        {
+          $group: {
+            _id: '$productId',
+            average: { $avg: '$rating' },
+            total: { $sum: 1 },
+          },
+        },
+      ]);
+
+      const average = agg[0]?.average || rating;
+      const total = agg[0]?.total || 1;
+
+      await this.redis.hmset(redisKey, {
+        average: average.toFixed(2),
+        total: total,
+      });
+    } else {
+      // Nếu đã có Redis, cập nhật lại
+      const oldAvg = parseFloat(ratingData.average);
+      const oldTotal = parseInt(ratingData.total);
+
+      const newTotal = oldTotal + 1;
+      const newAvg = ((oldAvg * oldTotal) + rating) / newTotal;
+
+      await this.redis.hmset(redisKey, {
+        average: newAvg.toFixed(2),
+        total: newTotal,
+      });
+    }
+    return newReview;
   }
 
   async update(id: string, updateDto: UpdateRatingDto) {
-    return this.reviewModel.findByIdAndUpdate(id, updateDto, { new: true });
+    const review = await this.reviewModel.findByIdAndUpdate(id, updateDto, { new: true });
+    if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
+
+    await this.recalculateRatingCache(review.productId);
+    return review;
   }
 
   async delete(id: string) {
-    return this.reviewModel.findByIdAndDelete(id);
+    const review = await this.reviewModel.findByIdAndDelete(id);
+    if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
+
+    await this.recalculateRatingCache(review.productId);
+    return review;
+  }
+
+  private async recalculateRatingCache(productId: Types.ObjectId) {
+    const redisKey = `product_rating:${productId.toString()}`;
+
+    const agg = await this.reviewModel.aggregate([
+      { $match: { productId: new Types.ObjectId(productId) } },
+      {
+        $group: {
+          _id: '$productId',
+          average: { $avg: '$rating' },
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
+    if (agg.length === 0) {
+      await this.redis.del(redisKey);
+    } else {
+      const { average, total } = agg[0];
+      await this.redis.hmset(redisKey, {
+        average: average.toFixed(2),
+        total,
+      });
+    }
   }
 
   async getAllByProductVariant(productId: string): Promise<RatingResDto[]> {

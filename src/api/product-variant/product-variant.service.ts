@@ -14,6 +14,7 @@ import { StockAction } from '../stock-history/models/stock-action.enum';
 import { StockHistoryDto } from '../stock-history/dto/stock-history.dto';
 import { VariantWithStockHistoryDto } from "./dto/variant-with-stock-history.dto";
 import { StockHistoryResDto } from "../stock-history/dto/stock-history-res.dto";
+import { OrderReqItem } from "../order/dto/order.req.dto";
 
 @Injectable()
 export class ProductVariantService implements OnModuleInit {
@@ -121,7 +122,7 @@ export class ProductVariantService implements OnModuleInit {
     }
 
     async updateVariantStock(variantId: string, quantity: number) {
-        if(quantity<0){
+        if (quantity < 0) {
             throw new AppException(`cập nhật số lượng ${quantity} không hợp lệ`)
         }
         const variant = await this.productVariantModel.findByIdAndUpdate(
@@ -136,8 +137,8 @@ export class ProductVariantService implements OnModuleInit {
     }
 
     async increaseStockWithLog(variantId: string, quantity: number, note?: string, actionBy?: string) {
-        if(!note){
-            note =`Nhập kho mặt hàng ${variantId}, +${quantity}`
+        if (!note) {
+            note = `Nhập kho mặt hàng ${variantId}, +${quantity}`
         }
         const variant = await this.productVariantModel.findById(variantId);
         if (!variant) throw new AppException('Không tìm thấy biến thể sản phẩm');
@@ -153,14 +154,14 @@ export class ProductVariantService implements OnModuleInit {
             note,
             actionBy,
         });
-        log("oldStock",oldStock)
-        log("variant.stock",variant.stock)
+        log("oldStock", oldStock)
+        log("variant.stock", variant.stock)
         return variant;
     }
 
     async decreaseStockWithLog(variantId: string, quantity: number, note?: string, actionBy?: string) {
-        if(!note){
-            note =`Xuất kho mặt hàng ${variantId}, -${quantity}`
+        if (!note) {
+            note = `Xuất kho mặt hàng ${variantId}, -${quantity}`
         }
         const variant = await this.productVariantModel.findById(variantId);
         if (!variant) throw new AppException('Không tìm thấy biến thể sản phẩm');
@@ -179,22 +180,90 @@ export class ProductVariantService implements OnModuleInit {
         });
     }
 
-    async getVariantsWithStockHistoryByProductId(productId: string):Promise<VariantWithStockHistoryDto[]> {
-        const variants = await this.productVariantModel.find({ productId }).populate({
-            path:'variantUnits_ids',
-            populate:'variantGroupId'
+    async getVariantsWithStockHistoryByProductId(productId: string): Promise<VariantWithStockHistoryDto[]> {
+        const variants = await this.productVariantModel.find({ productId:new Types.ObjectId(productId) }).populate({
+            path: 'variantUnits_ids',
+            populate: 'variantGroupId'
         });
+        console.log(variants);
+        
         const result = await Promise.all(
             variants.map(async (variant) => {
                 const stockHistory = await this.stockHistoryService.findByVariantId(variant._id);
                 return {
-                    variant: VariantMapper.mapVariantUnitsByGroup(variant), 
+                    variant: VariantMapper.mapVariantUnitsByGroup(variant),
                     stockHistory,
                 };
             })
         );
         return result;
     }
+
+    async findById(variantId: string) {
+        const variant = await this.productVariantModel.findById(variantId)
+        return {
+            stock: variant?.stock ?? 0
+        }
+    }
+
+
+    async getVariantsGroupedByProductIdFromVariantIds(orderItems: OrderReqItem[]) {
+    // Tạo Map để tra nhanh quantity theo variantId
+    const quantityMap = new Map(orderItems.map(item => [item.variantId, item.quantity]));
+
+    const variants = await this.productVariantModel.find({
+        _id: { $in: orderItems.map(i => i.variantId) }
+    })
+        .populate([
+            { path: 'productId', select: '_id name images' },
+            { path: 'variantUnits_ids', populate: { path: 'variantGroupId' } }
+        ])
+        .lean();
+
+    const groupMap = new Map<string, {
+        _id: string,
+        productName: string,
+        images: string[],
+        variants: {
+            _id: string,
+            name: string,
+            // variantUnits_ids: any[],
+            promotionalPrice: number,
+            quantity: number
+        }[]
+    }>();
+
+    for (const variant of variants) {
+        const product = variant.productId;
+        if (!product || typeof product !== 'object' || !('name' in product) || !('images' in product)) continue;
+
+        const productId = (product._id as Types.ObjectId).toString();
+        if (!groupMap.has(productId)) {
+            groupMap.set(productId, {
+                _id: productId,
+                productName: product.name as string,
+                images: product.images as string[],
+                variants: []
+            });
+        }
+
+        const mappedName = VariantMapper.mapVariantUnitsByGroup(variant).name;
+        const quantity = quantityMap.get(variant._id.toString()) ?? 0; // fallback nếu không tìm thấy
+
+        groupMap.get(productId)!.variants.push({
+            _id: variant._id.toString(),
+            name: mappedName,
+            // variantUnits_ids: variant.variantUnits_ids,
+            promotionalPrice: variant.promotionalPrice,
+            quantity
+        });
+    }
+
+    return Array.from(groupMap.values());
+}
+
+
+
 }
 
 

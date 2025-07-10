@@ -6,10 +6,12 @@ import { PartialStandardResponse, StandardApiRespondSuccess } from "src/common/t
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/product-request.dto";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
-import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
+import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto, ProductSuggestionDto, SuggestionType } from "./dto/product-respond.dto";
 import { PaginationDto } from "./dto/product-pagination.dto";
 import { UpdateProductDto, UpdateProductPriceDto } from "./dto/product-update.dto";
 import { Public } from "../../decorators/public.decorator";
+import { CurrentUser } from "src/decorators/curent-user.decorator";
+import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 
 @Controller('products')
 export class ProductController {
@@ -29,7 +31,7 @@ export class ProductController {
     async createProductTest(@Body("data") dataString: string, @UploadedFiles() files: Express.Multer.File[]): Promise<PartialStandardResponse<ProductRespondDto>> {
         const req: CreateProductDto = JSON.parse(dataString);
         console.log(dataString);
-        
+
         const data = await this.productService.createProduct(req, files)
         return {
             code: 201,
@@ -59,7 +61,7 @@ export class ProductController {
         return {
             code: 200,
             data: data,
-         
+
         }
     }
     @Public()
@@ -90,7 +92,7 @@ export class ProductController {
             message: "Update success"
         }
     }
-    
+
     @Public()
     @Post("admin/updatePrice")
     async updateProductPrices(@Body("productId") productId: string, @Body() dto: UpdateProductPriceDto): Promise<PartialStandardResponse<ProductRespondDto>> {
@@ -101,5 +103,40 @@ export class ProductController {
         }
     }
 
+    @Public()
+    @Get("suggestions")
+    async getProductSuggestions(
+        @Query("type") type: string = SuggestionType.POPULAR,
+        @Query("limit") limit?: string,
+        @CurrentUserId() userId?: string
+    ): Promise<PartialStandardResponse<ProductSuggestionDto[]>> {
+        const limitNumber = limit ? parseInt(limit) : 10;
+
+        // Validate suggestion type
+        if (!Object.values(SuggestionType).includes(type as SuggestionType)) {
+            return {
+                code: 400,
+                message: `Loại gợi ý không hợp lệ. Các loại có sẵn: ${Object.values(SuggestionType).join(', ')}`,
+                data: []
+            };
+        }
+
+        const data = await this.productService.getProductSuggestions(
+            type as SuggestionType,
+            userId,
+            limitNumber
+        );
+
+        const typeMessages = {
+            [SuggestionType.PERSONALIZED]: "Lấy danh sách sản phẩm cá nhân hóa thành công",
+            [SuggestionType.POPULAR]: "Lấy danh sách sản phẩm phổ biến thành công"
+        };
+
+        return {
+            code: 200,
+            data: data,
+            message: typeMessages[type as SuggestionType]
+        };
+    }
 
 }

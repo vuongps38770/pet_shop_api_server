@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Connection, Model, Types } from "mongoose";
 import { Product } from "./entity/product.entity";
@@ -10,13 +10,17 @@ import { VariantUnitService } from "../variant-units/variant-unit.service";
 import { ProductVariantService } from "../product-variant/product-variant.service";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 import { log } from "console";
-import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto } from "./dto/product-respond.dto";
+import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto, ProductSuggestionDto,SuggestionType } from "./dto/product-respond.dto";
 import { ProductMapper } from "./mappers/product.mapper";
 import { PaginationDto } from "./dto/product-pagination.dto";
 import { UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
 import { CreateProductDescriptionDto } from "./dto/description-request.dto";
 import { AppException } from "src/common/exeptions/app.exeption";
 import { CategoryService } from "../category/category.service";
+import Redis from "ioredis";
+import { json } from "stream/consumers";
+
+
 
 @Injectable()
 export class ProductService {
@@ -28,6 +32,7 @@ export class ProductService {
         private readonly cloudinaryService: CloudinaryService,
         private readonly categoryService: CategoryService,
         @InjectConnection() private readonly connection: Connection,
+        @Inject('REDIS_RATING') private readonly redis: Redis,
 
     ) { }
 
@@ -160,12 +165,16 @@ export class ProductService {
             session.endSession();
             throw error;
         }
-
-
     }
 
 
     async getProductById(productId: string): Promise<ProductRespondDto> {
+        const cacheKey = `productDetail/${productId}`
+        const cachedData = await this.redis.get(cacheKey)
+        if(cachedData){
+            console.log(JSON.parse(cachedData));
+            return JSON.parse(cachedData)
+        }
         const product = await this.productModel.findById(productId)
             .populate({
                 path: 'variantIds',
@@ -183,8 +192,11 @@ export class ProductService {
         if (!product) {
             throw new NotFoundException(`Không tìm thấy sản phẩm với id: ${productId}`);
         }
-        console.log(JSON.stringify(product, null, 2));
-        return ProductMapper.toDto(product);
+        // console.log(JSON.stringify(product, null, 2));
+        const data = ProductMapper.toDto(product); 
+        await this.redis.setex(cacheKey,1800,JSON.stringify(data))
+        log(`cached productDetail/${productId}`)
+        return data
     }
 
     async getProductByIdAndSimpilize(productId: string) {
@@ -202,7 +214,7 @@ export class ProductService {
 
 
         const skip = (page - 1) * limit;
-        const filter: any = {};
+        const filter: any = {isActivate:true};
         if (paginationDto.search?.trim()) {
             filter.$or = [
                 { name: { $regex: paginationDto.search.trim(), $options: 'i' } },
@@ -235,13 +247,28 @@ export class ProductService {
         ]);
 
 
-  
 
 
-        const data = rawData.map(item =>
-            ProductMapper.mapToSimplize(item)
-        )
-        
+
+        const data = await Promise.all(
+            rawData.map(async (item) => {
+                const productId = item._id.toString();
+                const redisKey = `product_rating:${productId}`;
+                const ratingData = await this.redis.hgetall(redisKey);
+
+                const average = ratingData?.average ? parseFloat(ratingData.average) : 0;
+                const total = ratingData?.total ? parseInt(ratingData.total) : 0;
+
+                return {
+                    ...ProductMapper.mapToSimplize(item),
+                    rating: {
+                        average,
+                        total
+                    }
+                };
+            })
+        );
+
         const totalPages = Math.ceil(total / limit);
 
         return {
@@ -280,7 +307,7 @@ export class ProductService {
             this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit)
                 .populate({
                     path: "variantIds",
-                    model: "ProductVariant", // Ensure correct model is used
+                    model: "ProductVariant", 
                     select: "stock"
                 })
                 .populate({
@@ -419,7 +446,228 @@ export class ProductService {
     }
 
 
-    async updateProductStock(){
+    async updateProductStock() {
+
+    }
+
+    async getPersonalizedSuggestions(userId?: string, limit: number = 10): Promise<ProductSuggestionDto[]> {
+        const redisKey = `personalized_suggestions:${userId || 'anonymous'}`;
         
+        // Kiểm tra cache Redis
+        const cachedData = await this.redis.get(redisKey);
+        if (cachedData) {
+            return JSON.parse(cachedData);
+        }
+
+        let suggestions: ProductSuggestionDto[] = [];
+
+        if (userId) {
+            // Lấy sản phẩm từ danh sách yêu thích
+            suggestions = await this.getFavoriteProducts(userId, limit);
+            
+            // Nếu không đủ, lấy sản phẩm liên quan đến sản phẩm đã mua
+            if (suggestions.length < limit) {
+                const relatedProducts = await this.getRelatedProductsByPurchaseHistory(userId, limit - suggestions.length);
+                suggestions = [...suggestions, ...relatedProducts];
+            }
+        }
+
+        // Nếu vẫn không đủ hoặc không có userId, lấy ngẫu nhiên
+        if (suggestions.length < limit) {
+            const randomProducts = await this.getRandomProducts(limit - suggestions.length);
+            suggestions = [...suggestions, ...randomProducts];
+        }
+
+        // Cache trong Redis 30 phút
+        await this.redis.setex(redisKey, 1800, JSON.stringify(suggestions));
+        
+        return suggestions;
+    }
+
+    async getPopularProducts(limit: number = 10): Promise<ProductSuggestionDto[]> {
+        const redisKey = `popular_products:${limit}`;
+        
+        // Kiểm tra cache Redis
+        const cachedData = await this.redis.get(redisKey);
+        if (cachedData) {
+            console.log('cached',cachedData);
+            
+            return JSON.parse(cachedData);
+        }
+
+        // Lấy sản phẩm phổ biến nhất dựa trên rating và số lượng đánh giá
+        const popularProducts = await this.productModel.aggregate([
+            {
+                $lookup: {
+                    from: 'reviews',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'reviews'
+                }
+            },
+            {
+                $match: {
+                    isActivate: true
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    images: 1,
+                    averageRating: { $avg: '$reviews.rating' },
+                    totalReviews: { $size: '$reviews' }
+                }
+            },
+            {
+                $sort: {
+                    averageRating: -1,
+                    totalReviews: -1
+                }
+            },
+            {
+                $limit: limit
+            }
+        ]);
+
+        const suggestions: ProductSuggestionDto[] = popularProducts.map(product => ({
+            _id: product._id.toString(),
+            name: product.name,
+            images: product.images || []
+        }));
+
+        // Cache trong Redis 30 phút
+        await this.redis.setex(redisKey, 1800, JSON.stringify(suggestions));
+        
+        return suggestions;
+    }
+
+    async getProductSuggestions(
+        type: SuggestionType, 
+        userId?: string, 
+        limit: number = 10
+    ): Promise<ProductSuggestionDto[]> {
+        switch (type) {
+            case SuggestionType.PERSONALIZED:
+                return this.getPersonalizedSuggestions(userId, limit);
+            case SuggestionType.POPULAR:
+                return this.getPopularProducts(limit);
+            default:
+                throw new BadRequestException(`Loại gợi ý không hợp lệ: ${type}`);
+        }
+    }
+
+    private async getFavoriteProducts(userId: string, limit: number): Promise<ProductSuggestionDto[]> {
+        try {
+            const favoriteProducts = await this.productModel.aggregate([
+                {
+                    $lookup: {
+                        from: 'favorites',
+                        localField: '_id',
+                        foreignField: 'productId',
+                        as: 'favorites'
+                    }
+                },
+                {
+                    $match: {
+                        'favorites.userId': new Types.ObjectId(userId),
+                        isActivate: true
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        name: 1,
+                        images: 1
+                    }
+                },
+                {
+                    $limit: limit
+                }
+            ]);
+
+            return favoriteProducts.map(product => ({
+                _id: product._id.toString(),
+                name: product.name,
+                images: product.images || []
+            }));
+        } catch (error) {
+            console.log('Error getting favorite products:', error);
+            return [];
+        }
+    }
+
+    private async getRelatedProductsByPurchaseHistory(userId: string, limit: number): Promise<ProductSuggestionDto[]> {
+        try {
+            const relatedProducts = await this.productModel.aggregate([
+                {
+                    $lookup: {
+                        from: 'orderdetails',
+                        localField: '_id',
+                        foreignField: 'productId',
+                        as: 'orderDetails'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'orders',
+                        localField: 'orderDetails.orderId',
+                        foreignField: '_id',
+                        as: 'orders'
+                    }
+                },
+                {
+                    $match: {
+                        'orders.userID': new Types.ObjectId(userId),
+                        isActivate: true
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        name: 1,
+                        images: 1
+                    }
+                },
+                {
+                    $limit: limit
+                }
+            ]);
+
+            return relatedProducts.map(product => ({
+                _id: product._id.toString(),
+                name: product.name,
+                images: product.images || []
+            }));
+        } catch (error) {
+            console.log('Error getting related products:', error);
+            return [];
+        }
+    }
+
+    private async getRandomProducts(limit: number): Promise<ProductSuggestionDto[]> {
+        const randomProducts = await this.productModel.aggregate([
+            {
+                $match: {
+                    isActivate: true
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    images: 1
+                }
+            },
+            {
+                $sample: { size: limit }
+            }
+        ]);
+
+        return randomProducts.map(product => ({
+            _id: product._id.toString(),
+            name: product.name,
+            images: product.images || []
+        }));
     }
 }

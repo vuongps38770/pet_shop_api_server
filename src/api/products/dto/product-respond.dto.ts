@@ -71,6 +71,10 @@ export class ProductRespondSimplizeDto {
     maxPromotionalPrice: number
     minSellingPrice: number
     maxSellingPrice: number
+    rating?: {
+        average:number,
+        total:number
+    }
 }
 
 
@@ -86,4 +90,19 @@ export class ProductAdminRespondSimplizeDto {
     maxSellingPrice: number
     sumStock?: number
     supplier: any
+}
+
+export class ProductSuggestionDto {
+    _id: string
+    name: string
+    images: string[]
+}
+
+export enum SuggestionType {
+    PERSONALIZED = 'personalized',
+    POPULAR = 'popular',
+    // Có thể thêm các loại khác sau này
+    // TRENDING = 'trending',
+    // NEW_ARRIVALS = 'new_arrivals',
+    // DISCOUNTED = 'discounted',
 }

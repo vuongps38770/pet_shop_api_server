@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { ProductController } from "./product.controller";
 import { Mongoose } from "mongoose";
 import { MongooseModule } from "@nestjs/mongoose";
@@ -10,6 +10,7 @@ import { VariantGroupModule } from "../variant-group/variant-group.module";
 import { CloudinaryModule } from "src/cloudinary/cloudinary.module";
 import { ProductVariantModule } from "../product-variant/product-variant.module";
 import { CategoryModule } from "../category/category.module";
+import { RatingModule } from "../rating/rating.module";
 
 
 @Module({
@@ -29,7 +30,8 @@ import { CategoryModule } from "../category/category.module";
         VariantGroupModule,
         CloudinaryModule,
         ProductVariantModule,
-        CategoryModule
+        CategoryModule,
+        forwardRef(()=>RatingModule) 
     ],
     controllers: [ProductController],
     providers: [ProductService],
