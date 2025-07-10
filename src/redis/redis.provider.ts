@@ -9,16 +9,16 @@ export const redisProvider: FactoryProvider<Promise<Redis>> = {
     inject: [ConfigService],
     useFactory: async (configService: ConfigService): Promise<Redis> => {
         const redis = new Redis(configService.getOrThrow<string>('REDIS_URL'), {
-            connectTimeout: 10000,
-            maxRetriesPerRequest: 5,
-            enableReadyCheck: true,
-            retryStrategy: (times) => {
-                const delay = Math.min(times * 100, 3000);
-                console.log(`🔁 Redis reconnecting... attempt ${times}, delay ${delay}ms`);
-                return delay;
-            },
-            // tls:{},
-            enableOfflineQueue: false,
+            // connectTimeout: 10000,
+            // maxRetriesPerRequest: 5,
+            // enableReadyCheck: true,
+            // retryStrategy: (times) => {
+            //     const delay = Math.min(times * 100, 3000);
+            //     console.log(`🔁 Redis reconnecting... attempt ${times}, delay ${delay}ms`);
+            //     return delay;
+            // },
+            tls:{},
+            // enableOfflineQueue: false,
         });
 
         redis.on('connect', () => {
