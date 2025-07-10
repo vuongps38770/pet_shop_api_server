@@ -69,7 +69,7 @@ export const OrderStatusPermissionMap: Record<OrderStatus, (UserRole)[]> = {
     [OrderStatus.PROCESSING]: [UserRole.ADMIN],
     [OrderStatus.SHIPPED]: [UserRole.ADMIN],
     [OrderStatus.DELIVERED]: [UserRole.ADMIN],
-    [OrderStatus.RECEIVED]: [UserRole.ADMIN],
+    [OrderStatus.RECEIVED]: [UserRole.USER],
     [OrderStatus.CANCELLED]: [UserRole.USER, UserRole.ADMIN],
     [OrderStatus.REFUNDED]: [UserRole.ADMIN],
     [OrderStatus.RETURNED]: [UserRole.USER, UserRole.ADMIN],

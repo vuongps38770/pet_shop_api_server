@@ -21,10 +21,12 @@ export class OrderLogService {
 
     async getLatest(orderId:any):Promise<OrderLogDocument|null> {
         const data = await this.orderLogModel
-            .findOne({ orderId: String(orderId) })
+            .findOne({ orderId: new Types.ObjectId(String(orderId)) })
             .sort({ createdAt: -1 })
             .lean();
         return data
     }
+    
+    
 
 }

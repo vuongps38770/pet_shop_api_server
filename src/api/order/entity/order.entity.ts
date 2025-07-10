@@ -18,7 +18,7 @@ export class Order {
 
         required: true, ref: "User",
         set: (value: any) => {
-            console.log('✅ Setter called for userID:', value);
+            console.log(' Setter called for userID:', value);
             if (typeof value === 'string') {
                 log("value là string đang cast sang object id")
                 return new Types.ObjectId(value);
@@ -70,6 +70,19 @@ export class Order {
 
     @Prop()
     discount?: number;
+
+    // Thông tin hoàn tiền
+    @Prop({ type: String, enum: ['PENDING', 'REFUNDED', 'FAILED'], default: null })
+    refundStatus?: string;
+
+    @Prop()
+    refundedAt?: Date;
+
+    @Prop()
+    refundAmount?: number;
+
+    @Prop()
+    refundError?: string;
 
 }
 

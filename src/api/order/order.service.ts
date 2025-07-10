@@ -20,7 +20,11 @@ import { CartService } from '../cart/cart.service';
 import { OrderLogService } from '../order-log/order-log.service';
 import { OrderAction } from '../order-log/models/order-action.enum';
 import { RedisService } from 'src/redis/redis.service';
+import { RedisJobName, RedisQueueName } from 'src/redis/constants/redis-queue.constant';
 import { VoucherService } from '../voucher/voucher.service';
+import { NotificationService } from '../notification/notification.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class OrderService {
@@ -35,7 +39,10 @@ export class OrderService {
         private readonly cartService: CartService,
         private readonly orderLogService: OrderLogService,
         private readonly redisService: RedisService,
-        private readonly voucherService: VoucherService
+        private readonly voucherService: VoucherService,
+        private readonly notificationService: NotificationService,
+        @InjectQueue(RedisQueueName.REFUND_QUEUE)
+        private readonly refundQueue: Queue
     ) { }
 
     async createOrder(usId: string, dto: OrderCreateReqDto): Promise<OrderCheckoutResDto> {
@@ -96,13 +103,19 @@ export class OrderService {
                 const voucher = await this.voucherService['voucherModel'].findOne({ code: dto.voucherCode });
                 if (!voucher) throw new AppException('Voucher không tồn tại hoặc đã bị xoá', 400);
                 // Tính discount
-                discount = await this.voucherService.checkOrderAndCalculateDiscount(
+                // discount = await this.voucherService.checkOrderAndCalculateDiscount(
+                //     voucher,
+                //     newOrder.totalPrice,
+                //     productIds,
+                //     new Types.ObjectId(usId)
+                // );
+                discount = await this.voucherService.CalculateDiscount(
                     voucher,
-                    newOrder.totalPrice,
-                    productIds,
-                    new Types.ObjectId(usId)
+                    newOrder.totalPrice
                 );
+
                 newOrder.discount = discount;
+                newOrder.totalPrice = newOrder.totalPrice - discount
                 voucherId = new Types.ObjectId(voucher._id as string);
             }
 
@@ -117,11 +130,14 @@ export class OrderService {
                 throw new AppException('Phương thức không hợp lệ', HttpStatus.BAD_REQUEST);
             }
             if (voucherId) newOrder.voucherID = voucherId;
+            console.log(newOrder);
+
             await newOrder.save({ session })
             // Đánh dấu user đã dùng voucher sau khi order thành công
-            if (voucherId) {
-                await this.voucherService.markVoucherUsed(voucherId, new Types.ObjectId(usId), newOrder._id);
-            }
+            // todo
+            // if (voucherId) {
+            //     await this.voucherService.markVoucherUsed(voucherId, new Types.ObjectId(usId), newOrder._id);
+            // }
             let payment: PaymentResDto | undefined = undefined;
             if (dto.paymentType == PaymentType.ZALOPAY) {
                 payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId, session);
@@ -357,6 +373,23 @@ export class OrderService {
         }
         order.status = nextStatus;
         await order.save();
+
+        // Gửi thông báo cho user về trạng thái đơn hàng
+        try {
+            await this.notificationService.sendOrderNotification(
+                order.userID.toString(),
+                order._id.toString(),
+                nextStatus,
+                {
+                    orderSku: order.sku,
+                    totalPrice: order.totalPrice.toString(),
+                    paymentType: order.paymentType
+                }
+            );
+        } catch (error) {
+            log(`❌ Lỗi khi gửi thông báo cho order ${order._id}:`, error);
+        }
+
         return order;
     }
 
@@ -385,6 +418,24 @@ export class OrderService {
             orderId: order._id.toString(),
             performed_by: 'SYSTEM',
         })
+
+        // Gửi thông báo cho user về trạng thái đơn hàng
+        try {
+            await this.notificationService.sendOrderNotification(
+                order.userID.toString(),
+                order._id.toString(),
+                nextStatus,
+                {
+                    orderSku: order.sku,
+                    totalPrice: order.totalPrice.toString(),
+                    paymentType: order.paymentType,
+                    performedBy: 'SYSTEM'
+                }
+            );
+        } catch (error) {
+            log(`❌ Lỗi khi gửi thông báo cho order ${order._id}:`, error);
+        }
+
         log(order)
         return order;
     }
@@ -393,7 +444,15 @@ export class OrderService {
         const availableRefundAblePaymentId = await this.paymentService.getAvailablePaymentIdThatPaidByOrderId(orderId)
         if (availableRefundAblePaymentId) {
             log("Đơn hàng " + availableRefundAblePaymentId + " sẽ đẩy vào queue")
-            // await this.redisService.set(`refund:payment:${orderId}`, availableRefundAblePaymentId, 60 * 60)
+
+            // Đẩy vào queue hoàn tiền Zalopay
+            await this.refundQueue.add(RedisJobName.REFUND_JOB, {
+                orderId: orderId.toString(),
+                paymentId: availableRefundAblePaymentId,
+                timestamp: new Date().toISOString()
+            });
+
+            log(`✅ Đã đẩy order ${orderId} vào queue hoàn tiền Zalopay`);
         } else {
             log("Không có đơn hàng khả dụng")
         }
@@ -414,21 +473,42 @@ export class OrderService {
         order.status = OrderStatus.CONFIRMED;
         await order.save();
 
+        // Gửi thông báo xác nhận thanh toán
+        try {
+            await this.notificationService.sendOrderNotification(
+                order.userID.toString(),
+                order._id.toString(),
+                OrderStatus.CONFIRMED,
+                {
+                    orderSku: order.sku,
+                    totalPrice: order.totalPrice.toString(),
+                    paymentType: order.paymentType,
+                    paymentData: paymentData
+                }
+            );
+        } catch (error) {
+            log(`❌ Lỗi khi gửi thông báo xác nhận thanh toán cho order ${order._id}:`, error);
+        }
+
         return OrderMapper.toRespondDto(order, null);
     }
 
-    async calculateOrderPricePreview(dto: CalculateOrderPriceReqDto,userId:string) {
+    async calculateOrderPricePreview(dto: CalculateOrderPriceReqDto, userId: string) {
         let productTotal = 0;
         let discount = 0;
         let productIds: Types.ObjectId[] = [];
         for (const item of dto.orderItems) {
             const itemData = await this.productVariantService.getOrderDetailByOrderReqItem(item.variantId, item.quantity);
+            log(itemData)
             productTotal += itemData.promotionalPrice * itemData.quantity || 0;
             productIds.push(new Types.ObjectId(itemData.productId));
         }
-
+        const itemdataMapped = await this.productVariantService.getVariantsGroupedByProductIdFromVariantIds(dto.orderItems)
+        // log(JSON.stringify(test))
         if (dto.voucherCode && userId) {
             discount = await this.getVoucherDiscount(dto.voucherCode, productTotal, productIds, userId);
+            console.log("discount", discount);
+
         }
         const shippingFee = await this.caculateShippingFee();
         const finalTotal = productTotal - discount + shippingFee;
@@ -437,6 +517,7 @@ export class OrderService {
             discount,
             shippingFee,
             finalTotal,
+            items: itemdataMapped
         };
     }
 
@@ -446,16 +527,17 @@ export class OrderService {
         const voucher = await this.voucherService['voucherModel'].findOne({ code: voucherCode });
         if (!voucher) return 0;
         // Kiểm tra user đã lưu voucher chưa và chưa dùng
-        const voucherUser = await this.voucherService['voucherUserModel'].findOne({ voucher_id: voucher._id, user_id: new Types.ObjectId(userId) });
-        if (!voucherUser) return 0;
+        // const voucherUser = await this.voucherService['voucherUserModel'].findOne({ voucher_id: voucher._id, user_id: new Types.ObjectId(userId) });
+        // if (!voucherUser) return 0;
         // Tính discount
         try {
-            return await this.voucherService.checkOrderAndCalculateDiscount(
-                voucher,
-                productTotal,
-                productIds,
-                new Types.ObjectId(userId)
-            );
+            // return await this.voucherService.checkOrderAndCalculateDiscount(
+            //     voucher,
+            //     productTotal,
+            //     productIds,
+            //     new Types.ObjectId(userId)
+            // );
+            return await this.voucherService.CalculateDiscount(voucher, productTotal)
         } catch {
             return 0;
         }

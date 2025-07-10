@@ -12,6 +12,9 @@ import { CartModule } from '../cart/cart.module';
 import { OrderLogModule } from '../order-log/order-log.module';
 import { RedisModule } from 'src/redis/redis.module';
 import { VoucherModule } from '../voucher/voucher.module';
+import { NotificationModule } from '../notification/notification.module';
+import { BullModule } from '@nestjs/bull';
+import { RedisQueueName } from 'src/redis/constants/redis-queue.constant';
 
 @Module({
   controllers: [OrderController],
@@ -23,6 +26,7 @@ import { VoucherModule } from '../voucher/voucher.module';
         schema: OrderSchema
       }
     ]),
+    BullModule.registerQueue({ name: RedisQueueName.REFUND_QUEUE }),
     OrderDetailModule,
     ProductVariantModule,
     AddressModule,
@@ -30,7 +34,8 @@ import { VoucherModule } from '../voucher/voucher.module';
     forwardRef(() => PaymentModule),
     OrderLogModule,
     RedisModule,
-    VoucherModule
+    VoucherModule,
+    NotificationModule
   ],
   exports: [
     MongooseModule,
