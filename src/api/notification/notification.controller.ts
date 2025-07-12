@@ -5,6 +5,7 @@ import { CreateNotificationDto, GetUserNotificationDto } from './dto/notificatio
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('notification')
 export class NotificationController {
@@ -53,6 +54,7 @@ export class NotificationController {
     return this.notificationService.markAsRead(notificationIds, userId);
   }
 
+  @Public()
   @Get('admin')
   async getAllForAdmin(@Query('page') page: number, @Query('limit') limit: number):Promise<PartialStandardResponse<any>> {
     const data = await this.notificationService.findAllForAdmin(page, limit)

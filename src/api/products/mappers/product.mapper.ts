@@ -23,9 +23,6 @@ export class ProductMapper {
                 _id: cat._id.toString(),
                 name: cat?.name||"",
                 parentId: cat.parentId?.toString() || null,
-                categoryType: cat.petType,
-                isRoot: cat.isRoot
-
             })),
 
             descriptions: (product.descriptions || []).map((desc: any): ProductDescriptionRespondDto => ({

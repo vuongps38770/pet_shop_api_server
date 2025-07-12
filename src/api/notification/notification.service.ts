@@ -182,7 +182,7 @@ export class NotificationService {
                 .limit(limit)
                 .lean(),
             this.notificationModel.countDocuments(filter),
-            this.notificationReadModel.find({ userId }).lean()
+            this.notificationReadModel.find({ userId: new Types.ObjectId(userId) }).lean()
         ]);
 
         const readMap = new Set(readList.map((r) => r.notificationId.toString()));
