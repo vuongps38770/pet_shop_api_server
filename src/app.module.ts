@@ -39,6 +39,7 @@ import { BullModule } from '@nestjs/bull';
 import { RedisQueueName } from './redis/constants/redis-queue.constant';
 import Redis from 'ioredis';
 import { RefundProcessor } from './worker/refund.prossesor';
+import { BannerModule } from './api/banner/banner.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -110,7 +111,8 @@ import { RefundProcessor } from './worker/refund.prossesor';
     RedisModule,
     FcmTokenModule,
     NotificationModule,
-    VoucherModule
+    VoucherModule,
+    BannerModule
 
 
 
