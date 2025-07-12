@@ -266,4 +266,45 @@ export class RatingService {
     log(JSON.stringify(result))
     return result.length > 0;
   }
+
+
+  async getSpecialRating() {
+    return this.reviewModel.aggregate([
+      {
+        $addFields: {
+          likeCount: { $size: '$likeList' }
+        }
+      },
+      {
+        $sort: {
+          rating: -1,
+          likeCount: -1
+        }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $lookup: {
+          from: 'users',           
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          comment: 1,
+          rating: 1,
+          likeCount: 1,
+          'user.name': 1,
+          'user.avatar': 1
+        }
+      }
+    ]);
+  }
+
 }

@@ -41,21 +41,27 @@ export class RatingController {
     return this.ratingService.getAllByUser(user_id);
   }
 
+  @Get('special')
+  async getSpecialRating(): Promise<PartialStandardResponse<any>> {
+    const data = await this.ratingService.getSpecialRating()
+    return { data }
+  }
+
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.ratingService.getById(id);
   }
 
   @Post('rate-post')
-  async ratePost(@CurrentUserId() usId:string,@Body("action") action:'LIKE'|'DISLIKE',@Body("ratingId") ratingId:string){
-    return this.ratingService.ratePost(usId,action,ratingId)
+  async ratePost(@CurrentUserId() usId: string, @Body("action") action: 'LIKE' | 'DISLIKE', @Body("ratingId") ratingId: string) {
+    return this.ratingService.ratePost(usId, action, ratingId)
   }
 
   @Get()
   async getProductReviews(
     @Query() query: GetProductReviewsQuery,
     @CurrentUserId() userId: string
-  ):Promise<PartialStandardResponse<any>> {
+  ): Promise<PartialStandardResponse<any>> {
     const reviews = await this.ratingService.getReviewsByProduct(
       query.productId,
       query.type,
