@@ -1,15 +1,18 @@
-import { ConflictException, Injectable, OnModuleInit } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Category } from "./entity/category.entity";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { CategoryRequestCreateDto, CategoryRequestEditDto } from "./dto/category.dto";
 import { CategoryType } from "./models/category-.enum";
+import { RedisClient } from "src/redis/redis.provider";
+import Redis from "ioredis";
 
 @Injectable()
 export class CategoryService implements OnModuleInit {
-
+    private readonly cacheKey = 'category_tree';
     constructor(
-        @InjectModel('category') private readonly categoryModel: Model<Category>
+        @InjectModel('category') private readonly categoryModel: Model<Category>,
+        @Inject(RedisClient) private readonly redis: Redis,
 
     ) {
 
@@ -22,58 +25,60 @@ export class CategoryService implements OnModuleInit {
     async addCategory(data: CategoryRequestCreateDto): Promise<Category> {
         try {
             const newCategory = await this.categoryModel.create({
-                categoryType: data.categoryType || null,
                 name: data.name,
-                parentId: data.parentId || null,
-                isRoot: data.isRoot
+                parentId: new Types.ObjectId(data.parentId)
             },);
-            if (data.parentId) {
-                await this.categoryModel.findByIdAndUpdate(
-                    data.parentId,
-                    {
-                        $push: { children: newCategory._id }
-                    },
-                    { new: true, runValidators: true }
-                )
-            }
+
+            await this.categoryModel.findByIdAndUpdate(
+                new Types.ObjectId(data.parentId),
+                {
+                    $push: { children: newCategory._id }
+                },
+                { new: true, runValidators: true }
+            )
+            await this.redis.del(this.cacheKey);
             return newCategory
         } catch (error) {
-            if (error.code === 11000) {
-                // Lấy thông tin field trùng từ error.keyValue
-                const duplicateField = Object.keys(error.keyValue)[0];
-                const duplicateValue = error.keyValue[duplicateField];
-
-                throw new ConflictException({
-                    success: false,
-                    code: 409,
-                    message: 'Duplicate category name for the same parent or type',
-                    errors: [
-                        {
-                            field: duplicateField,
-                            value: duplicateValue,
-                            issue: 'This category name already exists with the same parent or categoryType.',
-                        },
-                    ],
-                });
-            }
             throw error;
         }
-
-
     }
-    
+
     async getCategoryById(id: string): Promise<Category | null> {
         return this.categoryModel.findById(id).exec();
     }
-    async getCategoriesByType(type: CategoryType): Promise<Category[] | null> {
-        return this.categoryModel.find({ categoryType: type, parentId: null }).populate('children')
+
+    async getRootCategory() {
+        const data = await this.categoryModel.find({ parentId: null })
+        return data
     }
-    async getChildCategories(parentId:string): Promise<Category[] | null> {
-        return this.categoryModel.find({  parentId })
+
+    async getChildCategories(parentId: string): Promise<Category[] | null> {
+        if(parentId == "null") return this.getRootCategory()
+        return this.categoryModel.find({ parentId: new Types.ObjectId(parentId) })
     }
+
     async getAllCategories(): Promise<Category[]> {
-        return this.categoryModel.find().exec();
+        // const roots = await this.categoryModel
+        //     .find({ parentId: null })
+        //     .populate({
+        //         path: 'children',
+        //         populate: {
+        //             path: 'children',
+        //             model: 'Category'
+        //         }
+        //     })
+        //     .lean();
+        // return roots;
+        const cached = await this.redis.get(this.cacheKey);
+        if (cached) {
+            return JSON.parse(cached);
+        }
+        const categories = await this.categoryModel.find().lean();
+        const tree = this.buildTreeOptimized(categories);
+        await this.redis.set(this.cacheKey, JSON.stringify(tree), 'EX', 3600);
+        return tree
     }
+
     async updateCategory(data: CategoryRequestEditDto): Promise<Category> {
         if (!data) {
             throw new Error("Data is missing!")
@@ -86,19 +91,49 @@ export class CategoryService implements OnModuleInit {
         if (!cate) {
             throw new Error('Notfound category');
         }
+        await this.redis.del(this.cacheKey);
         return cate;
     }
 
 
-    async getChildIds(parentId:string):Promise<string[]>{
+    async getChildIds(parentId: string): Promise<string[]> {
         const data = await this.categoryModel.findById(parentId)
-        if(!data) return []
+        if (!data) return []
         return data?.children?.map(child => child.toString()) ?? []
     }
 
-    // async deleteCategory(id: string): Promise<Category|null> {
+    // async deleteCategory(id: string): Promise<any> {
     //     // check if category is used in products
     //     const category = await this.categoryModel.findById(id).exec();
 
     // }
+
+    async getAllRootCategory() {
+        return this.categoryModel.find({parentId:null})
+    }
+
+
+
+    private buildTreeOptimized(flat: any[]): any[] {
+        const idMap = new Map<string, any>();
+        const roots: any[] = [];
+
+        flat.forEach(cat => {
+            idMap.set(String(cat._id), { ...cat, children: [] });
+        });
+
+        flat.forEach(cat => {
+            if (cat.parentId) {
+                const parent = idMap.get(String(cat.parentId));
+                if (parent) {
+                    parent.children.push(idMap.get(String(cat._id)));
+                }
+            } else {
+                roots.push(idMap.get(String(cat._id)));
+            }
+        });
+
+        return roots;
+    }
+
 }

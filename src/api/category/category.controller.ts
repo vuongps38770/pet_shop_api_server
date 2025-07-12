@@ -54,16 +54,16 @@ export class CategoryController {
     }
     @Public()
     @Get('get-categories')
-    async getCategoryByType(@Query('type') type: CategoryType): Promise<PartialStandardResponse<Category[]>> {
-        const dataRes = await this.categoryService.getCategoriesByType(type)
+    async getCategoryByType(): Promise<PartialStandardResponse<Category[]>> {
+        const dataRes = await this.categoryService.getAllCategories()
         return {
             data: dataRes,
             message: "Succesfully"
         }
     }
     @Public()
-    @Get('get-child-categories')
-    async getChildCategoryBy(@Body("parentId") parentId:string): Promise<PartialStandardResponse<Category[]>> {
+    @Get('get-child-categories/:parentId')
+    async getChildCategoryBy(@Param("parentId") parentId: string): Promise<PartialStandardResponse<Category[]>> {
         const dataRes = await this.categoryService.getChildCategories(parentId)
         return {
             data: dataRes,
@@ -71,4 +71,10 @@ export class CategoryController {
         }
     }
 
+    @Public()
+    @Get('suggest')
+    async getSuggest(): Promise<PartialStandardResponse<any>> {
+        const data = await this.categoryService.getAllRootCategory()
+        return { data }
+    }
 }
