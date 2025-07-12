@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { AddressService } from "./address.service";
 import { PartialStandardResponse } from "src/common/type/standard-api-respond-format";
 import { DistrictDto, ProvinceDto, WardsDto } from "./dto/location-respond.dto";
 import { Public } from "src/decorators/public.decorator";
 import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 import { AddressCreateRequestDto, AddressEditRequestDto } from "./dto/address-request.dto";
+import { Types } from "mongoose";
 
 @Controller("address")
 export class AddressController {
@@ -69,12 +70,12 @@ export class AddressController {
         const data = await this.addressService.deleteAddress(usId, addressId);
         return { data, code: 200 };
     }
-    @Post('set-default/:id')
+    @Patch('set-default/:id')
     async setDefaultAddress(
         @CurrentUserId() usId: string,
         @Param('id') addressId: string
     ): Promise<PartialStandardResponse<any>> {
-        const data = await this.addressService.setAddressAsDefault(usId, addressId);
+        const data = await this.addressService.setAddressAsDefault(new Types.ObjectId(usId), addressId);
         return { data, code: 200 };
     }
 }

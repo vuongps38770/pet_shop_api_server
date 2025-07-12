@@ -73,7 +73,7 @@ export class AddressService {
         return address
     }
 
-    async setAddressAsDefault(userId: string, addressId: string) {
+    async setAddressAsDefault(userId: Types.ObjectId, addressId: string) {
         try {
 
             await this.addressModel.updateMany(
