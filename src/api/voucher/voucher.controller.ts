@@ -73,4 +73,10 @@ export class VoucherController {
     const data = await this.voucherService.getAvailableVouchersForOrder(total,new Types.ObjectId(userId))
     return {data}
   }
+
+  @Get('hot')
+  async getHotVoucher(@CurrentUserId() userId:string):Promise<PartialStandardResponse<any>>{
+    const data = await this.voucherService.getHotVoucher(userId)
+    return {data}
+  }
 }

@@ -256,7 +256,7 @@ export class VoucherService {
     const skip = (page - 1) * limit;
     const now = new Date();
 
-  
+
 
     if (status === 'not_collected') {
       let data = await this.notCollectedVouchers(userId, skip, limit, page, now)
@@ -339,7 +339,7 @@ export class VoucherService {
 
     const data = await this.voucherUserModel.aggregate([
       ...pipeline,
-      { $project: { saved: 0 } }, 
+      { $project: { saved: 0 } },
       { $skip: skip },
       { $limit: limit },
     ]);
@@ -387,7 +387,7 @@ export class VoucherService {
         }
       },
       {
-        $addFields:{
+        $addFields: {
           is_collected: false
         }
       }
@@ -749,6 +749,28 @@ export class VoucherService {
     return discount;
   }
 
+  async getHotVoucher(userId: string): Promise<any> {
+    const now = new Date();
+
+    const voucher = await this.voucherModel.find({
+      is_active: true,
+      start_date: { $lte: now },
+      end_date: { $gte: now },
+      $expr: { $lt: ["$used", "$quantity"] }
+    })
+      .sort({ used: -1 })
+      .limit(3)
+      .lean(); 
+
+    if (!voucher) return [];
+
+    // const is_collected = await this.voucherUserModel.exists({
+    //   user_id: new Types.ObjectId(userId),
+    //   voucher_id: voucher._id,
+    // });
+
+    return voucher
+  }
 
 }
 
