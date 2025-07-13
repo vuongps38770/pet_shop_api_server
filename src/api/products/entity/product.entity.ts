@@ -70,3 +70,9 @@ export class Product {
 
 export const ProductSchema = SchemaFactory.createForClass(Product)
 
+ProductSchema.index({ isActivate: 1 });
+ProductSchema.index({ createdAt: -1 });
+ProductSchema.index({ suppliers_id: 1 });
+ProductSchema.index({ categories_ids: 1 });
+ProductSchema.index({ minPromotionalPrice: 1 });
+ProductSchema.index({ maxPromotionalPrice: 1 });

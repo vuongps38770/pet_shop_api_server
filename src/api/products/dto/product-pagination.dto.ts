@@ -32,11 +32,17 @@ export class PaginationDto {
 
     @IsOptional()
     supplierId?: string
-
-    @IsOptional()
-    rootCategoryId?:string;
-
     
     @IsOptional()
     inStock?:boolean
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsPositive()
+    minPrice?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsPositive()
+    maxPrice?: number;
 }

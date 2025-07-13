@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Connection, Model, Types } from "mongoose";
 import { Product } from "./entity/product.entity";
@@ -10,7 +10,7 @@ import { VariantUnitService } from "../variant-units/variant-unit.service";
 import { ProductVariantService } from "../product-variant/product-variant.service";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 import { log } from "console";
-import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto, ProductSuggestionDto,SuggestionType } from "./dto/product-respond.dto";
+import { ProductAdminRespondSimplizeDto, ProductPaginationRespondDto, ProductRespondDto, ProductRespondSimplizeDto, ProductSuggestionDto, SuggestionType } from "./dto/product-respond.dto";
 import { ProductMapper } from "./mappers/product.mapper";
 import { PaginationDto } from "./dto/product-pagination.dto";
 import { UpdateProductDto, UpdateProductVariantPriceDto } from "./dto/product-update.dto";
@@ -23,7 +23,7 @@ import { json } from "stream/consumers";
 
 
 @Injectable()
-export class ProductService {
+export class ProductService implements OnModuleInit {
     constructor(
         @InjectModel("Product") private readonly productModel: Model<Product>,
         private readonly variantGroupService: VariantGroupService,
@@ -36,7 +36,11 @@ export class ProductService {
 
     ) { }
 
-
+    async onModuleInit() {
+        console.log('Syncing indexes for productModel collection...');
+        await this.productModel.syncIndexes();
+        console.log('Indexes synced!');
+    }
 
 
     async createProduct(data: CreateProductDto, imageFiles: Express.Multer.File[]): Promise<ProductRespondDto> {
@@ -171,7 +175,7 @@ export class ProductService {
     async getProductById(productId: string): Promise<ProductRespondDto> {
         const cacheKey = `productDetail/${productId}`
         const cachedData = await this.redis.get(cacheKey)
-        if(cachedData){
+        if (cachedData) {
             console.log(JSON.parse(cachedData));
             return JSON.parse(cachedData)
         }
@@ -193,8 +197,8 @@ export class ProductService {
             throw new NotFoundException(`Không tìm thấy sản phẩm với id: ${productId}`);
         }
         // console.log(JSON.stringify(product, null, 2));
-        const data = ProductMapper.toDto(product); 
-        await this.redis.setex(cacheKey,1800,JSON.stringify(data))
+        const data = ProductMapper.toDto(product);
+        await this.redis.setex(cacheKey, 1800, JSON.stringify(data))
         log(`cached productDetail/${productId}`)
         return data
     }
@@ -214,7 +218,7 @@ export class ProductService {
 
 
         const skip = (page - 1) * limit;
-        const filter: any = {isActivate:true};
+        const filter: any = { isActivate: true };
         if (paginationDto.search?.trim()) {
             filter.$or = [
                 { name: { $regex: paginationDto.search.trim(), $options: 'i' } },
@@ -223,20 +227,22 @@ export class ProductService {
         }
 
         if (paginationDto.categoryId?.trim()) {
-            console.log(paginationDto.categoryId);
-            filter.categories_ids = { $in: [paginationDto.categoryId] };
-        }
-
-        else if (paginationDto.rootCategoryId?.trim()) {
-            const childCategoryIds = await this.categoryService.getChildIds(paginationDto.rootCategoryId);
-
-
-            filter.categories_ids = { $in: childCategoryIds };
+            const categoryIds = await this.categoryService.getAllNestedCategoryIds(new Types.ObjectId(paginationDto.categoryId));
+            filter.categories_ids = { $in: categoryIds };
         }
 
         if (paginationDto.supplierId?.trim()) {
             filter.suppliers_id = paginationDto.supplierId;
         }
+
+        if(paginationDto.minPrice){
+            filter.minPromotionalPrice = paginationDto.minPrice
+        }
+
+        if(paginationDto.maxPrice){
+            filter.maxPromotionalPrice = paginationDto.maxPrice
+        }
+        
         const sortOption: any = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
         console.log(filter);
@@ -307,7 +313,7 @@ export class ProductService {
             this.productModel.find(filter).sort(sortOption).skip(skip).limit(limit)
                 .populate({
                     path: "variantIds",
-                    model: "ProductVariant", 
+                    model: "ProductVariant",
                     select: "stock"
                 })
                 .populate({
@@ -452,7 +458,7 @@ export class ProductService {
 
     async getPersonalizedSuggestions(userId?: string, limit: number = 10): Promise<ProductSuggestionDto[]> {
         const redisKey = `personalized_suggestions:${userId || 'anonymous'}`;
-        
+
         // Kiểm tra cache Redis
         const cachedData = await this.redis.get(redisKey);
         if (cachedData) {
@@ -464,7 +470,7 @@ export class ProductService {
         if (userId) {
             // Lấy sản phẩm từ danh sách yêu thích
             suggestions = await this.getFavoriteProducts(userId, limit);
-            
+
             // Nếu không đủ, lấy sản phẩm liên quan đến sản phẩm đã mua
             if (suggestions.length < limit) {
                 const relatedProducts = await this.getRelatedProductsByPurchaseHistory(userId, limit - suggestions.length);
@@ -480,18 +486,18 @@ export class ProductService {
 
         // Cache trong Redis 30 phút
         await this.redis.setex(redisKey, 1800, JSON.stringify(suggestions));
-        
+
         return suggestions;
     }
 
     async getPopularProducts(limit: number = 10): Promise<ProductSuggestionDto[]> {
         const redisKey = `popular_products:${limit}`;
-        
+
         // Kiểm tra cache Redis
         const cachedData = await this.redis.get(redisKey);
         if (cachedData) {
-            console.log('cached',cachedData);
-            
+            console.log('cached', cachedData);
+
             return JSON.parse(cachedData);
         }
 
@@ -538,13 +544,13 @@ export class ProductService {
 
         // Cache trong Redis 30 phút
         await this.redis.setex(redisKey, 1800, JSON.stringify(suggestions));
-        
+
         return suggestions;
     }
 
     async getProductSuggestions(
-        type: SuggestionType, 
-        userId?: string, 
+        type: SuggestionType,
+        userId?: string,
         limit: number = 10
     ): Promise<ProductSuggestionDto[]> {
         switch (type) {
@@ -668,6 +674,30 @@ export class ProductService {
             _id: product._id.toString(),
             name: product.name,
             images: product.images || []
+        }));
+    }
+
+
+    async getRelatedProducts(productId: string, limit: number = 5): Promise<ProductSuggestionDto[]> {
+        const product = await this.productModel.findById(new Types.ObjectId(productId));
+        if (!product) throw new NotFoundException('Không tìm thấy sản phẩm');
+    
+        const relatedProducts = await this.productModel.find({
+            _id: { $ne: new Types.ObjectId(productId) },
+            categories_ids: { $in: product.categories_ids },
+            isActivate: true
+        })
+        .limit(limit)
+        .select('_id name images minPromotionalPrice maxPromotionalPrice minSellingPrice maxSellingPrice');
+    
+        return relatedProducts.map(prod => ({
+            _id: prod._id.toString(),
+            name: prod.name,
+            images: prod.images || [],
+            minPromotionalPrice:prod.minPromotionalPrice || 9999999,
+            maxPromotionalPrice:prod.maxPromotionalPrice || 9999999,
+            minSellingPrice:prod.minSellingPrice || 9999999,
+            maxSellingPrice:prod.maxSellingPrice || 9999999,
         }));
     }
 }

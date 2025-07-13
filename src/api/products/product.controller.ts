@@ -139,4 +139,9 @@ export class ProductController {
         };
     }
 
+    @Get(":id/related")
+    async getRelatedProduct(@Param("id") productId:string){
+        const data = await this.productService.getRelatedProducts(productId)
+    }
+
 }
