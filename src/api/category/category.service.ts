@@ -53,7 +53,7 @@ export class CategoryService implements OnModuleInit {
     }
 
     async getChildCategories(parentId: string): Promise<Category[] | null> {
-        if(parentId == "null") return this.getRootCategory()
+        if (parentId == "null") return this.getRootCategory()
         return this.categoryModel.find({ parentId: new Types.ObjectId(parentId) })
     }
 
@@ -109,7 +109,7 @@ export class CategoryService implements OnModuleInit {
     // }
 
     async getAllRootCategory() {
-        return this.categoryModel.find({parentId:null})
+        return this.categoryModel.find({ parentId: null })
     }
 
 
@@ -136,4 +136,34 @@ export class CategoryService implements OnModuleInit {
         return roots;
     }
 
+    async getAllNestedCategoryIds(rootId: Types.ObjectId) {
+
+        const categories = await this.categoryModel.aggregate([
+            {
+                $match: { _id: rootId }
+            },
+            {
+                $graphLookup: {
+                    from: 'categories',
+                    startWith: '$_id',
+                    connectFromField: '_id',
+                    connectToField: 'parentId',
+                    as: 'descendants'
+                }
+            },
+            {
+                $project: {
+                    ids: {
+                        $concatArrays: [
+                            ['$_id'],
+                            { $map: { input: '$descendants', as: 'd', in: '$$d._id' } }
+                        ]
+                    }
+                }
+            }
+        ]);
+
+        return categories[0]?.ids?.map(id => id.toString()) || [];
+
+    }
 }
