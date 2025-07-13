@@ -591,22 +591,6 @@ export class VoucherService {
   async getAvailableVouchersForOrder(totalProductPrice: number, userId: Types.ObjectId) {
     const now = new Date();
 
-    // Lấy tất cả voucher loại đơn hàng còn hoạt động và chưa hết hạn
-    const activeVouchers = await this.voucherModel.find({
-      is_active: true,
-      start_date: { $lte: now },
-      end_date: { $gte: now },
-      $expr: { $gt: ["$quantity", "$used"] },
-      min_order_value: { $lte: totalProductPrice },
-      apply_type: VoucherApplyType.ORDER
-    }).lean();
-
-    //cái này depcrated vì đã sửa db
-    const savedButUnusedVoucherIds = await this.voucherUserModel.find({
-      user_id: userId,
-      used_at: null
-    }).distinct('voucher_id');
-
     //Lọc activeVoucher để lấy những cái đã lưu nhưng chưa dùng
     const availableVouchers = await this.voucherUserModel.aggregate([
       {
@@ -691,34 +675,34 @@ export class VoucherService {
     ])
 
     // Tính toán số tiền giảm giá cho từng voucher và sắp xếp
-    // const vouchersWithDiscount = await Promise.all(
-    //   availableVouchers.map(async (voucher) => {
-    //     try {
-    //       const discountAmount = await this.CalculateDiscount(
-    //         voucher,
-    //         totalProductPrice,
-    //       );
+    const vouchersWithDiscount = await Promise.all(
+      availableVouchers.map(async (voucher) => {
+        try {
+          const discountAmount = await this.CalculateDiscount(
+            voucher,
+            totalProductPrice,
+          );
 
-    //       return {
-    //         ...voucher,
-    //         calculatedDiscount: discountAmount,
-    //         discountPercentage: voucher.discount_type === DiscountType.PERCENT
-    //           ? voucher.discount_value
-    //           : (discountAmount / totalProductPrice) * 100
-    //       };
-    //     } catch (error) {
-    //       // Nếu voucher không áp dụng được thì bỏ qua
-    //       return null;
-    //     }
-    //   })
-    // );
+          return {
+            ...voucher,
+            calculatedDiscount: discountAmount,
+            discountPercentage: voucher.discount_type === DiscountType.PERCENT
+              ? voucher.discount_value
+              : (discountAmount / totalProductPrice) * 100
+          };
+        } catch (error) {
+          // Nếu voucher không áp dụng được thì bỏ qua
+          return null;
+        }
+      })
+    );
 
-    // // Lọc bỏ voucher null và sắp xếp theo số tiền giảm nhiều nhất
-    // const sortedVouchers = vouchersWithDiscount
-    //   .filter(voucher => voucher !== null)
-    //   .sort((a, b) => b.calculatedDiscount - a.calculatedDiscount);
+    // Lọc bỏ voucher null và sắp xếp theo số tiền giảm nhiều nhất
+    const sortedVouchers = vouchersWithDiscount
+      .filter(voucher => voucher !== null)
+      .sort((a, b) => b.calculatedDiscount - a.calculatedDiscount);
 
-    return availableVouchers;
+    return sortedVouchers;
   }
 
 
@@ -752,7 +736,7 @@ export class VoucherService {
   async getHotVoucher(userId: string): Promise<any> {
     const now = new Date();
 
-    const voucher = await this.voucherModel.find({
+    const vouchers = await this.voucherModel.find({
       is_active: true,
       start_date: { $lte: now },
       end_date: { $gte: now },
@@ -760,16 +744,25 @@ export class VoucherService {
     })
       .sort({ used: -1 })
       .limit(3)
-      .lean(); 
+      .lean();
 
-    if (!voucher) return [];
+    if (!vouchers||vouchers.length === 0) return [];
 
-    // const is_collected = await this.voucherUserModel.exists({
-    //   user_id: new Types.ObjectId(userId),
-    //   voucher_id: voucher._id,
-    // });
+    const savedStatuses = await Promise.all(
+      vouchers.map(voucher =>
+        this.voucherUserModel.exists({
+          user_id: new Types.ObjectId(userId),
+          voucher_id: voucher._id,
+        })
+      )
+    );
 
-    return voucher
+    const result = vouchers.map((voucher, index) => ({
+      ...voucher,
+      saved: !!savedStatuses[index], 
+    }));
+
+    return result
   }
 
 }
