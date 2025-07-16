@@ -8,7 +8,7 @@ import { ProductVariantService } from '../product-variant/product-variant.servic
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { TimeLimit } from 'src/constants/TimeLimit';
 import { OrderStatus, OrderStatusPermissionMap, OrderStatusSystem, OrderStatusTransitionMap, statusToActionMap } from './models/order-status';
-import { OrderCheckoutResDto, OrderDetailResDto, OrderListResDto, OrderRespondDto } from './dto/order.respond';
+import { OrderCheckoutResDto, OrderDetailResDto, OrderListResDto, OrderRebuyItemDto, OrderRespondDto } from './dto/order.respond';
 import { Address } from '../adress/entity/address.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { PaymentService } from '../payment/payment.service';
@@ -25,6 +25,7 @@ import { VoucherService } from '../voucher/voucher.service';
 import { NotificationService } from '../notification/notification.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { CartRespondDto } from '../cart/dto/cart-repspond-respond.dto';
 
 @Injectable()
 export class OrderService {
@@ -131,13 +132,8 @@ export class OrderService {
             }
             if (voucherId) newOrder.voucherID = voucherId;
             console.log(newOrder);
-
+            await this.productVariantService.updateVariantStockFromOrder(dto.orderItems, session);
             await newOrder.save({ session })
-            // Đánh dấu user đã dùng voucher sau khi order thành công
-            // todo
-            // if (voucherId) {
-            //     await this.voucherService.markVoucherUsed(voucherId, new Types.ObjectId(usId), newOrder._id);
-            // }
             let payment: PaymentResDto | undefined = undefined;
             if (dto.paymentType == PaymentType.ZALOPAY) {
                 payment = await this.paymentService.createZalopayTransToken(newOrder._id as Types.ObjectId, session);
@@ -334,7 +330,13 @@ export class OrderService {
             hasPrevious,
         };
     }
-
+    async getNewOrderCount(after: Date, types: OrderStatus[]): Promise<number> {
+        const filter: any = {
+            status: { $in: types },
+            createdAt: { $gte: after }
+        };
+        return this.orderModel.countDocuments(filter)
+    }
 
 
 
@@ -547,5 +549,34 @@ export class OrderService {
 
     async findByIdAndDelete(order_id: Types.ObjectId | string) {
         await this.orderModel.findByIdAndDelete(order_id)
+    }
+
+
+
+
+    async getAllOrderInfoById(orderId: Types.ObjectId) {
+        const order = await this.orderModel.aggregate([
+            {
+                $match: { _id: orderId }
+            },
+            {
+                $lookup: {
+                    foreignField: "orderId",
+                    localField: "_id",
+                    from: 'orderlogs',
+                    as: 'orderlogs'
+                }
+            }
+        ])
+        return order
+    }
+
+
+    async getReBuyOrdorder( orderId: string):Promise<OrderRebuyItemDto[]> {
+        const order = await this.orderModel.findById(new Types.ObjectId(orderId)).populate({
+            path:'orderDetailIds',
+            populate:'variantId productId',
+        })
+        return OrderMapper.toOrderRebuyItem(order)
     }
 }

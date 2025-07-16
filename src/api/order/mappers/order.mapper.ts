@@ -1,5 +1,5 @@
 import { OrderLogDocument } from "src/api/order-log/entity/order-log.entity";
-import { OrderDetailResDto, OrderRespondDto } from "../dto/order.respond";
+import { OrderDetailResDto, OrderRebuyItemDto, OrderRespondDto } from "../dto/order.respond";
 
 
 export class OrderMapper {
@@ -35,5 +35,23 @@ export class OrderMapper {
             paymentIds:order.paymentIds,
             latestLog:latestLog
         };
+    }
+
+    static toOrderRebuyItem(order:any): OrderRebuyItemDto[]{
+        return order.orderDetailIds.map((orderItem:any): OrderRebuyItemDto=>{
+            return{
+                _id:orderItem._id,
+                availableStock:orderItem.variantId.stock,
+                image:orderItem.image,
+                isActivate:orderItem.productId.isActivate,
+                product_id:orderItem.productId._id,
+                productName:orderItem.productId.name,
+                productVariantId:orderItem.variantId._id,
+                promotionalPrice:orderItem.variantId.promotionalPrice,
+                sellingPrice:orderItem.variantId.sellingPrice,
+                quantity:orderItem.quantity,
+                variantName:orderItem.variantName
+            }
+        } )
     }
 }

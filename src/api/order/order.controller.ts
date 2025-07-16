@@ -9,6 +9,7 @@ import { CurrentUser } from 'src/decorators/curent-user.decorator';
 import { User } from '../auth/entity/user.entity';
 import { log } from 'console';
 import { Public } from 'src/decorators/public.decorator';
+import { Types } from 'mongoose';
 
 @Controller('order')
 export class OrderController {
@@ -55,7 +56,27 @@ export class OrderController {
     }
   }
 
+  @Get(':id/all-detail')
+  async getAllOrderInfoById(@Param('id') ordeId: string) : Promise<PartialStandardResponse<any>>{
+    const data = await this.orderService.getAllOrderInfoById(new Types.ObjectId(ordeId))
+    return {data}
+  }
 
 
+  @Get('new-order-count')
+  async getNewOrderCount(@Query('after') after: string, @Query('types') types: OrderStatus[]): Promise<PartialStandardResponse<number>> {
+    let data;
+    if (!after) {
+      data = await this.orderService.getNewOrderCount(new Date(), types);
+    } else {
+      data = await this.orderService.getNewOrderCount(new Date(after), types);
+    }
+    return { data };
+  }
 
+  @Get('test/:orderId')
+  async test(@Param('orderId') orderId:string) : Promise<PartialStandardResponse<any>>{
+    const data = await this.orderService.getReBuyOrdorder(orderId)
+    return {data}
+  }
 }

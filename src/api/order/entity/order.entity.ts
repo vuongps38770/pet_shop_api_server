@@ -28,7 +28,7 @@ export class Order {
     })
     userID: Types.ObjectId;
 
-    @Prop({ required: true })
+    @Prop({ required: true, ref: 'OrderDetail'})
     orderDetailIds: Types.ObjectId[];
 
     @Prop({ required: true })
@@ -72,7 +72,7 @@ export class Order {
     discount?: number;
 
     // Thông tin hoàn tiền
-    @Prop({ type: String, enum: ['PENDING', 'REFUNDED', 'FAILED'], default: null })
+    @Prop({ type: String, enum: ['PENDING', 'REFUNDED', 'FAILED'] })
     refundStatus?: string;
 
     @Prop()

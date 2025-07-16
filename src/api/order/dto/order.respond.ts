@@ -41,6 +41,7 @@ export class OrderDetailResDto {
     quantity: number;
     sellingPrice: number;
     promotionalPrice?: number;
+    stock?:number
 }
 
 
@@ -59,3 +60,17 @@ export type OrderCheckoutResDto={
     paymentMethod:string, 
     payment?: any
 }   
+
+export type OrderRebuyItemDto = {
+    _id:string
+    productVariantId: string
+    variantName:string
+    productName:string
+    quantity: number
+    availableStock:number
+    isActivate:boolean
+    image:string
+    promotionalPrice:number
+    sellingPrice:number
+    product_id:string
+}
