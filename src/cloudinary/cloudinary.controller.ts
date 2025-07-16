@@ -9,6 +9,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from './cloudinary.service'; 
 import { Public } from 'src/decorators/public.decorator';
 import { log } from 'console';
+import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 
 @Controller('upload')
 export class UploadController {
@@ -23,9 +24,9 @@ export class UploadController {
   @Public()
   @Post('multiple')
   @UseInterceptors(FilesInterceptor('files'))
-  async uploadMultiple(@UploadedFiles() files: Express.Multer.File[]) {
+  async uploadMultiple(@UploadedFiles() files: Express.Multer.File[]): Promise<PartialStandardResponse<{ urls: string[] }>> {
     const urls = await this.uploadService.uploadMultiple(files);
     log(urls)
-    return { urls };
+    return { data: { urls } };
   }
 }

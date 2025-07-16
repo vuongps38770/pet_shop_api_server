@@ -51,6 +51,8 @@ export class Review {
         }
     })
     likeList: Types.ObjectId[]
+    @Prop()
+    images: string[];
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);

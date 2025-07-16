@@ -9,6 +9,7 @@ import { Product } from '../products/entity/product.entity';
 import { OrderDetail } from '../order-detail/entity/order-detail.entity';
 import { log } from 'console';
 import Redis from 'ioredis';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class RatingService {
@@ -16,20 +17,28 @@ export class RatingService {
     @InjectModel(Review.name) private reviewModel: Model<Review>,
     @InjectModel("Product") private readonly productModel: Model<Product>,
     @InjectModel('OrderDetail') private readonly orderDetailModel: Model<OrderDetail>,
-    @Inject('REDIS_RATING') private readonly redis: Redis
+    @Inject('REDIS_RATING') private readonly redis: Redis,
+    private readonly cloudinaryService:CloudinaryService
   ) { }
 
-  async create(user_id: string, createDto: CreateRatingDto) {
+  async create(user_id: string, createDto: CreateRatingDto, images?: Express.Multer.File[]) {
     // Nếu đã có đánh giá của user cho product_variant thì báo lỗi
     const existed = await this.reviewModel.findOne({
       user_id: user_id,
       product_variant_id: new Types.ObjectId(createDto.productId),
     });
     if (existed) throw new Error('Bạn đã đánh giá sản phẩm này!');
+
+    let imagesUrls:string[] = [];
+    if (images && images.length > 0) {
+      imagesUrls = await this.cloudinaryService.uploadMultiple(images)
+    }
+
     const newReview = await this.reviewModel.create({
       ...createDto,
       user_id: new Types.ObjectId(user_id),
       productId: new Types.ObjectId(createDto.productId),
+      images: imagesUrls
     });
     const productId = createDto.productId;
     const redisKey = `product_rating:${productId}`;
@@ -89,7 +98,7 @@ export class RatingService {
     return review;
   }
 
-  private async recalculateRatingCache(productId: Types.ObjectId) {
+  async recalculateRatingCache(productId: Types.ObjectId) {
     const redisKey = `product_rating:${productId.toString()}`;
 
     const agg = await this.reviewModel.aggregate([
@@ -111,6 +120,10 @@ export class RatingService {
         average: average.toFixed(2),
         total,
       });
+      return {
+        average: average.toFixed(2),
+        total,
+      }
     }
   }
 

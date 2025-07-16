@@ -10,5 +10,6 @@ export class RatingResDto {
   isDisliked:boolean;
   disLikeList:string[];
   likeList:string[];
-  isMine:boolean
+  isMine:boolean;
+  images?: string[];
 }

@@ -8,12 +8,14 @@ import { ProductModule } from '../products/product.module';
 import { OrderDetailModule } from '../order-detail/order-detail.module';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Review.name, schema: ReviewSchema }]),
     forwardRef(()=>ProductModule),
-    OrderDetailModule
+    OrderDetailModule,
+    CloudinaryModule
   ],
   controllers: [RatingController],
   providers: [RatingService,
@@ -28,7 +30,8 @@ import Redis from 'ioredis';
     },
   ],
   exports:[
-    'REDIS_RATING'
+    'REDIS_RATING',
+    RatingService
   ]
 })
 export class RatingModule { }

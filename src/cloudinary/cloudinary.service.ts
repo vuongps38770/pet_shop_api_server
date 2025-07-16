@@ -35,4 +35,23 @@ export class CloudinaryService {
     async uploadMultiple(files: Express.Multer.File[]): Promise<string[]> {
         return Promise.all(files.map((file) => this.uploadImage(file)));
     }
+
+
+    async uploadVideo(file: Express.Multer.File): Promise<string> {
+        if (!file || !file.buffer) {
+            throw new Error("No file provided or file buffer is empty");
+        }
+        return new Promise((resolve, reject) => {
+            v2.uploader.upload_stream(
+                { resource_type: "video", folder: "pet-shop" },
+                (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(result?.secure_url || "");
+                    }
+                }
+            ).end(file.buffer);
+        });
+    }
 }

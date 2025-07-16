@@ -1,18 +1,20 @@
-import { Controller, Post, Body, Put, Param, Delete, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Delete, Get, Query, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { RatingService } from './rating.service';
 import { CreateRatingDto, GetProductReviewsQuery, UpdateRatingDto } from './dto/rating-req.dto';
 import { CurrentUser } from 'src/decorators/curent-user.decorator';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { PartialStandardResponse } from 'src/common/type/standard-api-respond-format';
 import { RatingResDto } from './dto/rating-res.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('rating')
 export class RatingController {
   constructor(private readonly ratingService: RatingService) { }
 
   @Post()
-  async create(@CurrentUserId() userId: string, @Body() dto: CreateRatingDto): Promise<PartialStandardResponse<void>> {
-    await this.ratingService.create(userId, dto);
+  @UseInterceptors(FilesInterceptor('images'))
+  async create(@CurrentUserId() userId: string, @Body() dto: CreateRatingDto, @UploadedFiles() files?: Express.Multer.File[]): Promise<PartialStandardResponse<void>> {
+    await this.ratingService.create(userId, dto, files);
     return {}
   }
 
