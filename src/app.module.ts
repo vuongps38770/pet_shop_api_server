@@ -40,10 +40,15 @@ import { RedisQueueName } from './redis/constants/redis-queue.constant';
 import Redis from 'ioredis';
 import { RefundProcessor } from './worker/refund.prossesor';
 import { BannerModule } from './api/banner/banner.module';
+import { MessageModule } from './api/message/message.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { BroadcastProducer } from './worker/broadcast.producer';
+import { BroadcastProcessor } from './worker/broadcast.proccesor';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -73,6 +78,7 @@ import { BannerModule } from './api/banner/banner.module';
       }),
     }),
     BullModule.registerQueue({ name: RedisQueueName.REFUND_QUEUE }),
+    BullModule.registerQueue({ name: RedisQueueName.BROADCAST_QUEUE}),
     //module cho api
     // AuthModule,
     AuthModule,
@@ -112,8 +118,9 @@ import { BannerModule } from './api/banner/banner.module';
     FcmTokenModule,
     NotificationModule,
     VoucherModule,
-    BannerModule
-
+    BannerModule,
+    MessageModule,
+    
 
 
   ],
@@ -126,8 +133,9 @@ import { BannerModule } from './api/banner/banner.module';
     },
     OrderAutoCancelService,
     PaymentAutoCheckService,
-    BroadcastCronService,
-    RefundProcessor
+    RefundProcessor,
+    BroadcastProducer,
+    BroadcastProcessor
   ],
 
 })
