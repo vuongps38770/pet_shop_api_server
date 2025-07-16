@@ -181,12 +181,12 @@ export class ProductVariantService implements OnModuleInit {
     }
 
     async getVariantsWithStockHistoryByProductId(productId: string): Promise<VariantWithStockHistoryDto[]> {
-        const variants = await this.productVariantModel.find({ productId:new Types.ObjectId(productId) }).populate({
+        const variants = await this.productVariantModel.find({ productId: new Types.ObjectId(productId) }).populate({
             path: 'variantUnits_ids',
             populate: 'variantGroupId'
         });
         console.log(variants);
-        
+
         const result = await Promise.all(
             variants.map(async (variant) => {
                 const stockHistory = await this.stockHistoryService.findByVariantId(variant._id);
@@ -208,59 +208,72 @@ export class ProductVariantService implements OnModuleInit {
 
 
     async getVariantsGroupedByProductIdFromVariantIds(orderItems: OrderReqItem[]) {
-    // Tạo Map để tra nhanh quantity theo variantId
-    const quantityMap = new Map(orderItems.map(item => [item.variantId, item.quantity]));
+        // Tạo Map để tra nhanh quantity theo variantId
+        const quantityMap = new Map(orderItems.map(item => [item.variantId, item.quantity]));
 
-    const variants = await this.productVariantModel.find({
-        _id: { $in: orderItems.map(i => i.variantId) }
-    })
-        .populate([
-            { path: 'productId', select: '_id name images' },
-            { path: 'variantUnits_ids', populate: { path: 'variantGroupId' } }
-        ])
-        .lean();
+        const variants = await this.productVariantModel.find({
+            _id: { $in: orderItems.map(i => i.variantId) }
+        })
+            .populate([
+                { path: 'productId', select: '_id name images' },
+                { path: 'variantUnits_ids', populate: { path: 'variantGroupId' } }
+            ])
+            .lean();
 
-    const groupMap = new Map<string, {
-        _id: string,
-        productName: string,
-        images: string[],
-        variants: {
+        const groupMap = new Map<string, {
             _id: string,
-            name: string,
-            // variantUnits_ids: any[],
-            promotionalPrice: number,
-            quantity: number
-        }[]
-    }>();
+            productName: string,
+            images: string[],
+            variants: {
+                _id: string,
+                name: string,
+                // variantUnits_ids: any[],
+                promotionalPrice: number,
+                quantity: number
+            }[]
+        }>();
 
-    for (const variant of variants) {
-        const product = variant.productId;
-        if (!product || typeof product !== 'object' || !('name' in product) || !('images' in product)) continue;
+        for (const variant of variants) {
+            const product = variant.productId;
+            if (!product || typeof product !== 'object' || !('name' in product) || !('images' in product)) continue;
 
-        const productId = (product._id as Types.ObjectId).toString();
-        if (!groupMap.has(productId)) {
-            groupMap.set(productId, {
-                _id: productId,
-                productName: product.name as string,
-                images: product.images as string[],
-                variants: []
+            const productId = (product._id as Types.ObjectId).toString();
+            if (!groupMap.has(productId)) {
+                groupMap.set(productId, {
+                    _id: productId,
+                    productName: product.name as string,
+                    images: product.images as string[],
+                    variants: []
+                });
+            }
+
+            const mappedName = VariantMapper.mapVariantUnitsByGroup(variant).name;
+            const quantity = quantityMap.get(variant._id.toString()) ?? 0; // fallback nếu không tìm thấy
+
+            groupMap.get(productId)!.variants.push({
+                _id: variant._id.toString(),
+                name: mappedName,
+                // variantUnits_ids: variant.variantUnits_ids,
+                promotionalPrice: variant.promotionalPrice,
+                quantity
             });
         }
 
-        const mappedName = VariantMapper.mapVariantUnitsByGroup(variant).name;
-        const quantity = quantityMap.get(variant._id.toString()) ?? 0; // fallback nếu không tìm thấy
-
-        groupMap.get(productId)!.variants.push({
-            _id: variant._id.toString(),
-            name: mappedName,
-            // variantUnits_ids: variant.variantUnits_ids,
-            promotionalPrice: variant.promotionalPrice,
-            quantity
-        });
+        return Array.from(groupMap.values());
     }
-
-    return Array.from(groupMap.values());
-}
+    async updateVariantStockFromOrder(orderItems:OrderReqItem[], session: ClientSession) {
+        for (let item of orderItems) {
+            const variant = await this.productVariantModel.findById(item.variantId);
+            if (!variant) {
+                throw new AppException(`Không tìm thấy biến thể sản phẩm với ID ${item.variantId}`, HttpStatusCode.NotFound, 'VARIANT_NOT_FOUND');
+            }
+            if (variant.stock < item.quantity) {
+                throw new AppException(`Không đủ tồn kho cho biến thể ${item.variantId}`, HttpStatusCode.Conflict, 'OUT_OF_STOCK');
+            }
+            variant.stock -= item.quantity;
+            await variant.save({ session });
+        }
+    }
 
 
 
