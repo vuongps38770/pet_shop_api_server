@@ -19,6 +19,7 @@ import { AppException } from "src/common/exeptions/app.exeption";
 import { CategoryService } from "../category/category.service";
 import Redis from "ioredis";
 import { json } from "stream/consumers";
+import { RatingService } from "../rating/rating.service";
 
 
 
@@ -33,6 +34,7 @@ export class ProductService implements OnModuleInit {
         private readonly categoryService: CategoryService,
         @InjectConnection() private readonly connection: Connection,
         @Inject('REDIS_RATING') private readonly redis: Redis,
+        private readonly ratingService: RatingService
 
     ) { }
 
@@ -235,14 +237,14 @@ export class ProductService implements OnModuleInit {
             filter.suppliers_id = paginationDto.supplierId;
         }
 
-        if(paginationDto.minPrice){
+        if (paginationDto.minPrice) {
             filter.minPromotionalPrice = paginationDto.minPrice
         }
 
-        if(paginationDto.maxPrice){
+        if (paginationDto.maxPrice) {
             filter.maxPromotionalPrice = paginationDto.maxPrice
         }
-        
+
         const sortOption: any = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
         console.log(filter);
@@ -261,9 +263,17 @@ export class ProductService implements OnModuleInit {
                 const productId = item._id.toString();
                 const redisKey = `product_rating:${productId}`;
                 const ratingData = await this.redis.hgetall(redisKey);
+                let average: number;
+                let total: number;
 
-                const average = ratingData?.average ? parseFloat(ratingData.average) : 0;
-                const total = ratingData?.total ? parseInt(ratingData.total) : 0;
+                if (!ratingData || !ratingData.average || !ratingData.total) {
+                    const recalculated = await this.ratingService.recalculateRatingCache(new Types.ObjectId(productId));
+                    average = recalculated?.average ?? 0;
+                    total = recalculated?.total ?? 0;
+                } else {
+                    average = parseFloat(ratingData.average);
+                    total = parseInt(ratingData.total);
+                }
 
                 return {
                     ...ProductMapper.mapToSimplize(item),
@@ -681,23 +691,23 @@ export class ProductService implements OnModuleInit {
     async getRelatedProducts(productId: string, limit: number = 5): Promise<ProductSuggestionDto[]> {
         const product = await this.productModel.findById(new Types.ObjectId(productId));
         if (!product) throw new NotFoundException('Không tìm thấy sản phẩm');
-    
+
         const relatedProducts = await this.productModel.find({
             _id: { $ne: new Types.ObjectId(productId) },
             categories_ids: { $in: product.categories_ids },
             isActivate: true
         })
-        .limit(limit)
-        .select('_id name images minPromotionalPrice maxPromotionalPrice minSellingPrice maxSellingPrice');
-    
+            .limit(limit)
+            .select('_id name images minPromotionalPrice maxPromotionalPrice minSellingPrice maxSellingPrice');
+
         return relatedProducts.map(prod => ({
             _id: prod._id.toString(),
             name: prod.name,
             images: prod.images || [],
-            minPromotionalPrice:prod.minPromotionalPrice || 9999999,
-            maxPromotionalPrice:prod.maxPromotionalPrice || 9999999,
-            minSellingPrice:prod.minSellingPrice || 9999999,
-            maxSellingPrice:prod.maxSellingPrice || 9999999,
+            minPromotionalPrice: prod.minPromotionalPrice || 9999999,
+            maxPromotionalPrice: prod.maxPromotionalPrice || 9999999,
+            minSellingPrice: prod.minSellingPrice || 9999999,
+            maxSellingPrice: prod.maxSellingPrice || 9999999,
         }));
     }
 }

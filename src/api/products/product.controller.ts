@@ -140,8 +140,9 @@ export class ProductController {
     }
 
     @Get(":id/related")
-    async getRelatedProduct(@Param("id") productId:string){
+    async getRelatedProduct(@Param("id") productId:string):Promise<PartialStandardResponse<any>>{
         const data = await this.productService.getRelatedProducts(productId)
+        return {data}
     }
 
 }
