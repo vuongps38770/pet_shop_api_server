@@ -1,0 +1,9 @@
+export const SEND_MESSAGE_EVENT = 'send_message';
+export const JOIN_CONVERSATION_EVENT = 'join_conversation';
+export const RECEIVE_MESSAGE_EVENT = 'receive_message';
+export const EDIT_MESSAGE_EVENT = 'edit_message';
+export const AUTHORIZED_EVENT = 'authorized';
+export const UNAUTHORIZED_EVENT = 'unauthorized';
+export const ADMIN_JOIN_PREVIEW_CONVERSATION_EVENT = 'admin_join_preview_conversation';
+export const CONVERSATION_TRIGGER_EVENT = 'conversation_trigger';
+export const ADMIN_PREVIEW_CONVERSATION_ROOM = 'admin_preview_conversation_room';
