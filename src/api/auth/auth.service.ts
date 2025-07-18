@@ -13,6 +13,11 @@ import { PartialStandardResponse } from "src/common/type/standard-api-respond-fo
 import { AppException } from "src/common/exeptions/app.exeption";
 import { UserRespondDto } from "./dto/user.dto.respond";
 import { TimeLimit } from "src/constants/TimeLimit";
+import { UserRole } from "./models/role.enum";
+import { AppMailerService } from "src/mailer/mailer.service";
+import { RedisClient } from "src/redis/redis.provider";
+import Redis from "ioredis";
+import { ApiErrorStatus } from "src/constants/api.error.keys";
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -22,6 +27,8 @@ export class AuthService implements OnModuleInit {
         private readonly refreshTokenService: RefreshTokenService,
         @Inject('JWT_ACCESS') private readonly jwtAccessService: JwtService,
         @Inject('JWT_REFRESH') private readonly jwtRefreshService: JwtService,
+        private readonly appMailerService: AppMailerService,
+        @Inject(RedisClient) private readonly redis: Redis
     ) { }
 
 
@@ -68,7 +75,7 @@ export class AuthService implements OnModuleInit {
     async checkIfExistPhone(phone: string) {
         const existingUser = await this.findByPhone(phone);
         if (existingUser) {
-            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT,"PHONE_EXISTED");
+            throw new AppException('User with this phone number already exists', HttpStatus.CONFLICT, "PHONE_EXISTED");
         }
     }
 
@@ -76,7 +83,7 @@ export class AuthService implements OnModuleInit {
     async validateUser(userId: string): Promise<void> {
         const user = await this.userModel.findById(new Types.ObjectId(userId));
         if (!user) {
-            throw new AppException('User not found', 404,"USER_NOT_FOUND");
+            throw new AppException('User not found', 404, "USER_NOT_FOUND");
         }
 
 
@@ -153,7 +160,7 @@ export class AuthService implements OnModuleInit {
     }
     // Lưu mã OTP vào cơ sở dữ liệu
     private async savePhoneOtp(phone: string, otp: string): Promise<boolean> {
-        const expiresAt = new Date(Date.now() + 10*60 * 1000);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
         const otpCode = await this.otpModel.create(
             {
                 phone,
@@ -185,11 +192,11 @@ export class AuthService implements OnModuleInit {
     async checkPhoneOtp(phone: string, otp: string): Promise<boolean> {
         const otpRecord = await this.otpModel.findOne({ phone, otp }).exec();
         if (!otpRecord) {
-            throw new AppException('Invalid OTP or phone number',400,'INVALID_OTP');
+            throw new AppException('Invalid OTP or phone number', 400, 'INVALID_OTP');
         }
         const currentTime = new Date();
         if (otpRecord.expiresAt && otpRecord.expiresAt < currentTime) {
-            throw new AppException('OTP has expired',400,'EXPIRED_OTP');
+            throw new AppException('OTP has expired', 400, 'EXPIRED_OTP');
         }
         // Xóa OTP sau khi kiểm tra thành công
         await this.otpModel.deleteOne({ _id: otpRecord._id }).exec();
@@ -252,21 +259,21 @@ export class AuthService implements OnModuleInit {
 
         const payload = this.jwtRefreshService.verify(refreshToken) as TokenPayload;
         if (!payload) {
-            throw new AppException('Invalid refresh token',HttpStatus.UNAUTHORIZED);
+            throw new AppException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
         }
         await this.refreshTokenService.validateToken(payload.sub, userAgent, refreshToken);
-        
+
         const newPayload = new TokenPayload(payload.sub, payload.role);
         const accessToken = this.jwtAccessService.sign(newPayload.toJSON());
         const newRefreshToken = this.jwtRefreshService.sign(newPayload.toJSON());
         console.log("new", newRefreshToken);
-        const expiresAt = new Date(Date.now() +TimeLimit["7Days"]);
+        const expiresAt = new Date(Date.now() + TimeLimit["7Days"]);
         await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
         return { accessToken, newRefreshToken };
 
 
     }
-    
+
     async logout(userId: string, userAgent: string): Promise<void> {
         await this.refreshTokenService.logOut(userId, userAgent)
     }
@@ -342,4 +349,122 @@ export class AuthService implements OnModuleInit {
         }
     }
 
+
+    async googleAuthRedirect(user: any) {
+        if (!user || !user.email) return ""
+        const exist = await this.userModel.findOne({ email: user.email }).lean();
+        if (exist) {
+            return this.generateTokensAndReturnLink(exist, user.userAgent)
+        } else {
+            const userCreate = await this.userModel.create({
+                avatar: user.picture || undefined,
+                email: user.email,
+                name: user.lastName,
+                surName: user.firstName,
+                lastLogin: Date.now(),
+                createdAt: Date.now(),
+                role: UserRole.USER,
+                updatedAt: Date.now(),
+                provider: 'google'
+            })
+            await userCreate.save()
+            return this.generateTokensAndReturnLink(userCreate, user.userAgent)
+        }
+
+    }
+
+    private async generateTokensAndReturnLink(user: User, userAgent: string) {
+        const payload = new TokenPayload(user._id, user.role);
+        const accessToken = this.jwtAccessService.sign(payload.toJSON());
+        const newRefreshToken = this.jwtRefreshService.sign(payload.toJSON());
+        const expiresAt = new Date(Date.now() + TimeLimit["7Days"]);
+        await this.refreshTokenService.createOrUpdateToken(payload.sub, newRefreshToken, expiresAt, userAgent);
+        await this.userModel.updateOne({ _id: user._id }, { lastLogin: new Date() });
+        return `petshop://login?accessToken=${accessToken}&refreshToken=${newRefreshToken}`;
+    }
+
+
+
+    
+    //tao otp cho tai khoan muon them email vao
+    async sendOtpAddEmail(email: string) {
+        const exist = await this.userModel.findOne({ email })
+        if (exist) throw new AppException('Email đã tồn tại', HttpStatus.CONFLICT, ApiErrorStatus.EMAIL_EXISTED)
+        const { expiresInMinutes, otp } = this.createMailOtp(email)
+        await this.sendOtpToMail(email, otp, expiresInMinutes)
+        await this.redis.set(`otp:change-email:${email}`,otp)
+    }
+    // xac thuc otp khi nguoi dung them email va luu vao tk
+    async verifyOtpEmail(userId: string, email: string, token: string) {
+        const cachedToken = await this.redis.get(`otp:change-email:${email}`);
+        if (!cachedToken || cachedToken !== token) {
+            throw new AppException('Token không hợp lệ hoặc đã hết hạn', HttpStatus.BAD_REQUEST, ApiErrorStatus.TOKEN_INVALID);
+        }
+        const user = await this.userModel.findById(userId)
+        if (!user) throw new AppException('User không tồn tại', HttpStatus.NOT_FOUND, ApiErrorStatus.USER_NOT_FOUND);
+        user.email = email
+        await user.save();
+        await this.redis.del(`otp:change-email:${email}`);
+        return { success: true };
+    }
+
+
+
+
+
+
+
+
+
+    //gui otp toi email muon reset mk
+    async sendResetPasswordEmailOtp(email: string) {
+        const exist = await this.userModel.findOne({ email })
+        if (!exist) throw new AppException('Email không tồn tại', HttpStatus.NOT_FOUND, ApiErrorStatus.EMAIL_NOT_FOUND)
+        if (exist.provider != null && exist.provider != undefined && exist.provider != undefined) {
+            throw new AppException('Email dùng để đăng nhập Oauth', HttpStatus.CONFLICT, ApiErrorStatus.OAUTH_ACCOUNT_ERR)
+        }
+        const { expiresInMinutes, otp } = this.createMailOtp(email)
+        await this.sendOtpToMail(email, otp, expiresInMinutes)
+        await this.redis.set(`otp:${email}`,otp);
+    }
+
+    // xac thuc otp cho email muon doi mk
+    async verifyOtpResetEmail(otp: string, email: string) {
+        const cachedOtp = await this.redis.get(`otp:${email}`);
+        if (!cachedOtp || cachedOtp !== otp) {
+            throw new AppException('OTP không hợp lệ hoặc đã hết hạn', HttpStatus.BAD_REQUEST, ApiErrorStatus.OTP_INVALID);
+        }
+        await this.redis.del(`otp:${email}`);
+        const token = Math.random().toString(36).substring(2) + Date.now();
+        await this.redis.set(`reset-token:${email}`, token, 'EX', 600);
+        return { token };
+    }
+
+
+
+    async changePw(email: string, pw: string, token: string) {
+        const cachedToken = await this.redis.get(`reset-token:${email}`);
+        if (!cachedToken || cachedToken !== token) {
+            throw new AppException('Token không hợp lệ hoặc đã hết hạn', HttpStatus.BAD_REQUEST, ApiErrorStatus.TOKEN_INVALID);
+        }
+        const user = await this.userModel.findOne({ email });
+        if (!user) throw new AppException('User không tồn tại', HttpStatus.NOT_FOUND, ApiErrorStatus.USER_NOT_FOUND);
+        user.password = await bcrypt.hash(pw, 10);
+        await user.save();
+        await this.redis.del(`reset-token:${email}`);
+        return { success: true };
+    }
+
+
+
+
+
+    private createMailOtp(email: string) {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresInMinutes = 1;
+        return { email, otp, expiresInMinutes };
+    }
+    async sendOtpToMail(email: string, otp: string, expiresInMinutes: number) {
+        await this.appMailerService.sendOtpEmail(email, otp, expiresInMinutes);
+    }
 }

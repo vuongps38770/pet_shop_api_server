@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Injectable, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Injectable, Post, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { UserCreateData } from "./dto/auth.dto.userCreateData";
@@ -8,6 +8,10 @@ import { CurrentUserId } from "src/decorators/current-user-id.decorator";
 import { RawResponse } from "src/decorators/raw.decorator";
 import { Public } from "../../decorators/public.decorator";
 import { UserRespondDto } from "./dto/user.dto.respond";
+import { AuthGuard } from "@nestjs/passport";
+import { log } from "console";
+import { GoogleAuthGuard } from "./guards/google-auth.guard";
+import { Raw } from "typeorm";
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +29,7 @@ export class AuthController {
     async signUp(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUp(data)
         return {
-            message:'User created successfully'
+            message: 'User created successfully'
         }
     }
 
@@ -34,7 +38,7 @@ export class AuthController {
     async signUpTest(@Body() data: UserCreateData): Promise<PartialStandardResponse<void>> {
         await this.authService.signUpTest(data)
         return {
-            message:'User created successfully'
+            message: 'User created successfully'
         }
 
     }
@@ -43,7 +47,7 @@ export class AuthController {
     async checkPhone(@Body("phone") phone: string): Promise<PartialStandardResponse<void>> {
         await this.authService.checkIfExistPhone(phone)
         return {
-            message:'Your phone Number is valid!'
+            message: 'Your phone Number is valid!'
         }
     }
 
@@ -85,7 +89,7 @@ export class AuthController {
     }
 
 
-    
+
     @Post('refresh-token')
     async refreshToken(@Body('refreshToken') refreshToken: string, @Body('userAgent') userAgent: string, @Res({ passthrough: true }) res: Response): Promise<PartialStandardResponse<{ accessToken, refreshToken }>> {
         const { accessToken, newRefreshToken } = await this.authService.refreshToken(refreshToken, userAgent);
@@ -101,7 +105,7 @@ export class AuthController {
         }
     }
 
-    
+
     @Post('logout')
     @RequireAuth()
     async logOut(@CurrentUserId() userId: string, @Body("userAgent") userAgent: string): Promise<StandardApiRespondSuccess<void>> {
@@ -130,4 +134,53 @@ export class AuthController {
         //     refreshToken: refreshToken,
         // });
     }
+
+
+    @Public()
+    @Get('google')
+    @UseGuards(GoogleAuthGuard)
+    async googleAutha(@Req() req) {
+    }
+
+    @RawResponse()
+    @Public()
+    @Get('google/redirect')
+    @UseGuards(AuthGuard('google'))
+    async googleAuthRedirect(@Req() req,@Res() res: Response) {
+        log("user", req.user)
+        const deeplink = await this.authService.googleAuthRedirect(req.user)
+        log(deeplink)
+        return res.redirect(deeplink);
+    }
+    
+    @Post('send-otp-add-email')
+    async sendOtpAddEmail(@Body('email') email: string) {
+        return this.authService.sendOtpAddEmail(email);
+    }
+
+    @Post('verify-otp-add-email')
+    async verifyOtpAddEmail(@CurrentUserId('userId') userId: string, @Body('email') email: string, @Body('otp') otp: string) {
+        return this.authService.verifyOtpEmail(userId, email, otp);
+    }
+
+    @Public()
+    @Post('send-otp-reset-password')
+    async sendOtpResetPassword(@Body('email') email: string) {
+        return this.authService.sendResetPasswordEmailOtp(email);
+    }
+
+    @Public()
+    @Post('verify-otp-reset-password')
+    async verifyOtpResetPassword(@Body('email') email: string, @Body('otp') otp: string): Promise<PartialStandardResponse<{token:string}>> {
+        const data = await this.authService.verifyOtpResetEmail(otp, email);
+        return {data}
+    }
+
+    @Public()
+    @Post('change-password')
+    async changePassword(@Body('email') email: string, @Body('password') password: string, @Body('token') token: string) {
+        return this.authService.changePw(email, password, token);
+    }
+
+    
 }

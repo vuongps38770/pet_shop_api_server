@@ -8,6 +8,9 @@ import { OtpSchema } from "./models/otp.enity";
 import { RefreshTokenService } from "./refresh-token.service";
 import { JwtService } from "@nestjs/jwt";
 import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity";
+import { GoogleStrategy } from "./stragery/google.stragery";
+import { AppMailerModule } from "src/mailer/app-mailer.module";
+import { RedisModule } from "src/redis/redis.module";
 
 
 @Module({
@@ -25,7 +28,8 @@ import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity"
         {
             provide: RefreshTokenService,
             useClass: RefreshTokenService
-        }
+        },
+        GoogleStrategy
     ],
     exports: [AuthService,MongooseModule,'JWT_ACCESS'],
     imports: [
@@ -43,6 +47,8 @@ import { RefreshToken, RefreshTokenSchema } from "./entity/refresh-token.entity"
                 schema:RefreshTokenSchema
             }
         ]),
+        AppMailerModule,
+        RedisModule
     ]
 })
 export class AuthModule {

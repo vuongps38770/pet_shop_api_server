@@ -8,7 +8,7 @@ export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name) private readonly refreshTokenRepository: Model<RefreshToken>,
     ) { }
-
+        
     async createOrUpdateToken(userId: string, token: string, expiresAt: Date, userAgent: string): Promise<RefreshToken> {
         const hashedToken = sha256(token)
         log("newhash", hashedToken)
@@ -76,6 +76,6 @@ export class RefreshTokenService {
         }
     }
 
-
+    
 
 }
