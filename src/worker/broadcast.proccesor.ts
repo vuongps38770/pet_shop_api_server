@@ -5,19 +5,21 @@ import { FcmTokenService } from '../api/fcm-token/fcm-token.service';
 import { FirebaseAdminService } from '../firebase-admin/firebase-admin.service';
 import { NotificationService } from '../api/notification/notification.service';
 import { Types } from 'mongoose';
+import { RedisQueueName } from 'src/redis/constants/redis-queue.constant';
 
-@Processor('broadcast-queue')
+@Processor(RedisQueueName.BROADCAST_QUEUE )
 export class BroadcastProcessor {
   private readonly logger = new Logger(BroadcastProcessor.name);
 
   constructor(
     private fcmService: FcmTokenService,
     private firebase: FirebaseAdminService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
   ) {}
 
   @Process('send-broadcast')
   async handleBroadcast(job: Job<{ payload: any, notificationId: string }>) {
+    this.logger.log('📣 [BroadcastProcessor] Processing broadcast job...');
     const { payload, notificationId } = job.data;
 
     const tokens = await this.fcmService.getAllFcmtokenFromAllUser();

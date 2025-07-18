@@ -13,7 +13,7 @@ import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Review.name, schema: ReviewSchema }]),
-    forwardRef(()=>ProductModule),
+    forwardRef(() => ProductModule),
     OrderDetailModule,
     CloudinaryModule
   ],
@@ -23,13 +23,15 @@ import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
       provide: 'REDIS_RATING',
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        return new Redis(configService.getOrThrow<string>('REDIS_URL'), {
-          tls: {},
+        const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+        const isSecure = redisUrl.startsWith('rediss://');
+        return new Redis(redisUrl, {
+          tls: isSecure ? {} : undefined,
         });
       },
     },
   ],
-  exports:[
+  exports: [
     'REDIS_RATING',
     RatingService
   ]
