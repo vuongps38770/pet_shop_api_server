@@ -44,6 +44,7 @@ import { MessageModule } from './api/message/message.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BroadcastProducer } from './worker/broadcast.producer';
 import { BroadcastProcessor } from './worker/broadcast.proccesor';
+import { AppMailerModule } from './mailer/app-mailer.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -69,16 +70,31 @@ import { BroadcastProcessor } from './worker/broadcast.proccesor';
         createClient: (type) => {
           const redisUrl = configService.getOrThrow<string>('REDIS_URL');
           const isSecure = redisUrl.startsWith('rediss://');
-          return new Redis(redisUrl, {
+          const redis = new Redis(redisUrl, {
             tls: isSecure ? {} : undefined,
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
           });
+          ////////////////////////////////////////////////////////
+          const originalGet = redis.get.bind(redis);
+          redis.get = async (...args) => {
+            const result = await originalGet(...args);
+            console.log(`[REDIS READ] GET ${args[0]} => ${result}`);
+            return result;
+          };
+
+
+          const originalSet = redis.set.bind(redis);
+          redis.set = async (...args) => {
+            console.log(`[REDIS WRITE] SET ${args[0]} = ${args[1]}`);
+            return await originalSet(...args);
+          };
+          return redis
         }
       }),
     }),
     BullModule.registerQueue({ name: RedisQueueName.REFUND_QUEUE }),
-    BullModule.registerQueue({ name: RedisQueueName.BROADCAST_QUEUE}),
+    BullModule.registerQueue({ name: RedisQueueName.BROADCAST_QUEUE }),
     //module cho api
     // AuthModule,
     AuthModule,
@@ -120,7 +136,8 @@ import { BroadcastProcessor } from './worker/broadcast.proccesor';
     VoucherModule,
     BannerModule,
     MessageModule,
-    
+    AppMailerModule,
+
 
 
   ],

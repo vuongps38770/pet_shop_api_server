@@ -8,7 +8,9 @@ export const redisProvider: FactoryProvider<Promise<Redis>> = {
     provide: RedisClient,
     inject: [ConfigService],
     useFactory: async (configService: ConfigService): Promise<Redis> => {
-        const redis = new Redis(configService.getOrThrow<string>('REDIS_URL'), {
+        const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+        const isSecure = redisUrl.startsWith('rediss://');
+        const redis = new Redis(redisUrl, {
             // connectTimeout: 10000,
             // maxRetriesPerRequest: 5,
             // enableReadyCheck: true,
@@ -17,7 +19,7 @@ export const redisProvider: FactoryProvider<Promise<Redis>> = {
             //     console.log(`🔁 Redis reconnecting... attempt ${times}, delay ${delay}ms`);
             //     return delay;
             // },
-            tls:{},
+            tls: isSecure ? {} : undefined,
             // enableOfflineQueue: false,
         });
 
@@ -41,6 +43,20 @@ export const redisProvider: FactoryProvider<Promise<Redis>> = {
             console.warn('🏁 Redis connection ended.');
         });
 
+        ////////////////////////////////////////////////////////
+        const originalGet = redis.get.bind(redis);
+        redis.get = async (...args) => {
+            const result = await originalGet(...args);
+            console.log(`[REDIS READ] GET ${args[0]} => ${result}`);
+            return result;
+        };
+
+
+        const originalSet = redis.set.bind(redis);
+        redis.set = async (...args) => {
+            console.log(`[REDIS WRITE] SET ${args[0]} = ${args[1]}`);
+            return await originalSet(...args);
+        };
         return redis;
     },
     // useFactory: (configService: ConfigService) => {
