@@ -29,6 +29,7 @@ export class OrderRespondDto {
     sku:string;
     paymentIds:string[]
     latestLog:OrderLogDocument|null
+    discount?:number
 }
 
 export class OrderDetailResDto {

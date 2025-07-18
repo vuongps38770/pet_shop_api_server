@@ -33,7 +33,8 @@ export class OrderMapper {
             productPrice: order.productPrice,
             sku: order.sku,
             paymentIds:order.paymentIds,
-            latestLog:latestLog
+            latestLog:latestLog,
+            discount:order.discount||undefined
         };
     }
 

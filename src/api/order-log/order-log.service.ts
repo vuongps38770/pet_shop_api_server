@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { OrderLog, OrderLogDocument } from './entity/order-log.entity';
 import { Model, Types } from 'mongoose';
 import { CreateOrderLogDto } from './dto/orderlog-create.dto';
+import { log } from 'console';
 
 @Injectable()
 export class OrderLogService {
@@ -11,6 +12,11 @@ export class OrderLogService {
     ) { }
 
     async createLog(dto: CreateOrderLogDto) {
+        const elog = await this.orderLogModel.findOne({action:dto.action,performed_by:dto.performed_by,orderId:dto.orderId})
+        if(elog){
+            log(elog)
+            return
+        }
         try {
             await this.orderLogModel.create({ ...dto })
         } catch (error) {
@@ -27,6 +33,12 @@ export class OrderLogService {
         return data
     }
     
-    
+    async getAllOrderLogsByOrderId(orderId:string):Promise<OrderLogDocument[]> {
+        const data = await this.orderLogModel
+            .find({ orderId: new Types.ObjectId(orderId) })
+            .sort({ createdAt: -1 })
+            .lean();
+        return data
+    }
 
 }

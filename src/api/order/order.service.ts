@@ -315,7 +315,10 @@ export class OrderService {
 
         // Map sang OrderRespondDto
         const data = await Promise.all(
-            (orders as Order[]).map(async (order) => OrderMapper.toRespondDto(order, null))
+            (orders as OrderDocument[]).map(async (order) => {
+                const latestLog = await this.orderLogService.getLatest(order._id);
+                return OrderMapper.toRespondDto(order, latestLog)
+            })
         );
 
         const hasNext = page * limit < total;
@@ -333,9 +336,10 @@ export class OrderService {
     async getNewOrderCount(after: Date, types: OrderStatus[]): Promise<number> {
         const filter: any = {
             status: { $in: types },
-            createdAt: { $gte: after }
+            createdAt: { $gt: after }
         };
-        return this.orderModel.countDocuments(filter)
+        const data = await this.orderModel.countDocuments(filter)
+        return data
     }
 
 
@@ -397,12 +401,13 @@ export class OrderService {
 
 
     async systemUpdateOrderStatus(orderId: string | Types.ObjectId, nextStatus: OrderStatusSystem): Promise<any> {
-
-        log(orderId)
         const order = await this.orderModel.findById(orderId) as OrderDocument;
-        console.log(order);
         if (!order) {
             throw new NotFoundException('Order not found');
+        }
+        console.log("order:", order._id);
+        if (order.status === nextStatus) {
+            return order;
         }
         order.status = nextStatus;
         const action = statusToActionMap[nextStatus];
@@ -413,14 +418,12 @@ export class OrderService {
         if (nextStatus == OrderStatus.CANCELLED) {
             await this.searchAvailablePaymentAndSetQueueToRefund(order._id)
         }
-
-
+        log('createdLog', order._id + " " + action)
         await this.orderLogService.createLog({
             action: action,
             orderId: order._id.toString(),
             performed_by: 'SYSTEM',
-        })
-
+        });
         // Gửi thông báo cho user về trạng thái đơn hàng
         try {
             await this.notificationService.sendOrderNotification(
@@ -437,7 +440,6 @@ export class OrderService {
         } catch (error) {
             log(`❌ Lỗi khi gửi thông báo cho order ${order._id}:`, error);
         }
-
         log(order)
         return order;
     }
@@ -566,17 +568,49 @@ export class OrderService {
                     from: 'orderlogs',
                     as: 'orderlogs'
                 }
+            },
+            {
+                $lookup: {
+                    foreignField: "voucherID",
+                    localField: "_id",
+                    from: 'vouchers',
+                    as: 'voucher'
+                }
             }
         ])
         return order
     }
 
 
-    async getReBuyOrdorder( orderId: string):Promise<OrderRebuyItemDto[]> {
+    async getReBuyOrdorder(orderId: string): Promise<OrderRebuyItemDto[]> {
         const order = await this.orderModel.findById(new Types.ObjectId(orderId)).populate({
-            path:'orderDetailIds',
-            populate:'variantId productId',
+            path: 'orderDetailIds',
+            populate: 'variantId productId',
         })
         return OrderMapper.toOrderRebuyItem(order)
+    }
+
+    async getSuggestOrderInfoBySku(sku: string) {
+        try {
+            const order = await this.orderModel.findOne({sku:sku}).select('_id orderDetailIds paymentType shippingAddress productPrice totalPrice status sku')
+            if (!order) return null
+            return order
+        } catch (error) {
+            return null
+        }
+
+
+    }
+
+    async getSuggestOrderInfoById(id: string) {
+        try {
+            const order = await this.orderModel.findById(id).select('_id orderDetailIds paymentType shippingAddress productPrice totalPrice status sku')
+            if (!order) return null
+            return order
+        } catch (error) {
+            return null
+        }
+
+
     }
 }

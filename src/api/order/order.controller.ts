@@ -56,27 +56,34 @@ export class OrderController {
     }
   }
 
-  @Get(':id/all-detail')
-  async getAllOrderInfoById(@Param('id') ordeId: string) : Promise<PartialStandardResponse<any>>{
-    const data = await this.orderService.getAllOrderInfoById(new Types.ObjectId(ordeId))
-    return {data}
+  @Get(':id/detail')
+  async getAllOrderInfoById(@Param('id') ordeId: string): Promise<PartialStandardResponse<OrderRespondDto>> {
+    const data = await this.orderService.findOrderById(new Types.ObjectId(ordeId))
+    return { data }
   }
 
 
   @Get('new-order-count')
   async getNewOrderCount(@Query('after') after: string, @Query('types') types: OrderStatus[]): Promise<PartialStandardResponse<number>> {
-    let data;
-    if (!after) {
-      data = await this.orderService.getNewOrderCount(new Date(), types);
-    } else {
-      data = await this.orderService.getNewOrderCount(new Date(after), types);
-    }
+    const afterDate = after ? new Date(after) : new Date();
+    const data = await this.orderService.getNewOrderCount(afterDate, types);
     return { data };
   }
 
-  @Get('test/:orderId')
-  async test(@Param('orderId') orderId:string) : Promise<PartialStandardResponse<any>>{
+  @Get('getRebuyItem/:orderId')
+  async test(@Param('orderId') orderId: string): Promise<PartialStandardResponse<any>> {
     const data = await this.orderService.getReBuyOrdorder(orderId)
-    return {data}
+    return { data }
+  }
+
+  @Get('order-suggest/:sku')
+  async getSuggestOrderInfoBysku(@Param('sku') sku: string): Promise<PartialStandardResponse<any>> {
+    const data = await this.orderService.getSuggestOrderInfoBySku(sku)
+    return { data }
+  }
+  @Get('order-suggest-by-id/:id')
+  async getSuggestOrderInfoById(@Param('id') id: string): Promise<PartialStandardResponse<any>> {
+    const data = await this.orderService.getSuggestOrderInfoById(id)
+    return { data }
   }
 }
