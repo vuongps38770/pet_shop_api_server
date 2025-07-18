@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mã xác thực OTP của bạn</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #FFAF42; /* Màu chủ đạo mới: Yellow Orange */
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .header h1 {
+            margin: 0;
+            color: #FFAF42; /* Màu chủ đạo mới: Yellow Orange */
+        }
+        .content {
+            padding: 20px 0;
+            text-align: center;
+        }
+        .otp-code {
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFAF42; /* Màu chủ đạo mới: Yellow Orange */
+            background-color: #FFF2E6; /* Màu nền nhẹ hơn từ #FFAF42 (~20% hoặc 30%) */
+            padding: 15px 25px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 20px 0;
+            letter-spacing: 3px;
+        }
+        .instruction {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #eeeeee;
+            font-size: 12px;
+            color: #888888;
+        }
+        .note {
+            font-size: 14px;
+            color: #666666;
+            margin-top: 15px;
+        }
+        a {
+            color: #FFAF42; /* Màu chủ đạo mới: Yellow Orange */
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Mã xác thực OTP của bạn</h1>
+        </div>
+        <div class="content">
+            <p class="instruction">Vui lòng sử dụng mã này để hoàn tất quá trình xác thực:</p>
+            <div class="otp-code">{{otp}}</div>
+            <p class="note">Mã này có hiệu lực trong **{{expiresInMinutes}} phút** và chỉ có thể sử dụng một lần.</p>
+            <p class="note">Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{currentYear}} PetShop. All rights reserved!</p>
+            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+        </div>
+    </div>
+</body>
+</html>
