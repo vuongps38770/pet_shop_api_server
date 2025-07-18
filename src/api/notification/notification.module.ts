@@ -9,6 +9,8 @@ import { NotificationRead, NotificationReadSchema } from './emtity/notification-
 import { RedisModule } from 'src/redis/redis.module';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 import { UsersModule } from '../users/users.module';
+import { BullModule } from '@nestjs/bull';
+import { RedisQueueName } from 'src/redis/constants/redis-queue.constant';
 
 @Module({
   controllers: [NotificationController],
@@ -28,7 +30,8 @@ import { UsersModule } from '../users/users.module';
     ]),
     RedisModule,
     CloudinaryModule,
-    UsersModule
+    UsersModule,
+    BullModule.registerQueue({ name: RedisQueueName.BROADCAST_QUEUE }),
   ],
 
   exports: [NotificationService],

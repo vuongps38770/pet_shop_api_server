@@ -14,7 +14,8 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { UsersService } from '../users/users.service';
 import { MessagingPayload } from 'firebase-admin/lib/messaging/messaging-api';
-
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 // Interface cho data thông báo
 export interface NotificationData {
     route: string;
@@ -44,7 +45,8 @@ export class NotificationService {
         private readonly notificationReadModel: Model<NotificationRead>,
         private readonly loudinaryService: CloudinaryService,
         private readonly usersService: UsersService,
-        @InjectConnection() private readonly connection: Connection
+        @InjectConnection() private readonly connection: Connection,
+        @InjectQueue(RedisQueueName.BROADCAST_QUEUE) private broadcastQueue: Queue,
     ) { }
 
     //test
@@ -98,9 +100,13 @@ export class NotificationService {
             data: { type: dto.type },
         };
 
-        await this.redisService.pushToQueue(RedisQueueName.BROADCAST_QUEUE, {
+        // await this.redisService.pushToQueue(RedisQueueName.BROADCAST_QUEUE, {
+        //     notificationId: saved._id,
+        //     payload: fcmPayload,
+        // });
+        await this.broadcastQueue.add('send-broadcast', {
             notificationId: saved._id,
-            payload: fcmPayload,
+            payload: fcmPayload
         });
     }
 
@@ -207,7 +213,7 @@ export class NotificationService {
 
     async markAsRead(notificationIds: string[], userId: string) {
         const notis = await this.notificationModel.find({
-            _id: { $in: notificationIds.map((item)=>new Types.ObjectId(item)) }
+            _id: { $in: notificationIds.map((item) => new Types.ObjectId(item)) }
         });
         log(notis)
         const writes: Promise<any>[] = [];
