@@ -367,11 +367,7 @@ export class OrderService {
             throw new AppException('Bạn không có quyền thực hiện hành động này', HttpStatus.UNAUTHORIZED);
         }
         if (nextStatus == OrderStatus.CANCELLED) {
-            await this.orderLogService.createLog({
-                action: OrderAction.CANCEL_ORDER,
-                orderId: order._id.toString(),
-                performed_by: role,
-            });
+
             await this.searchAvailablePaymentAndSetQueueToRefund(order._id);
             if (order && order.voucherID) {
                 await this.voucherService.cancelVoucherUsage(order.voucherID, order.userID, order._id);
@@ -379,7 +375,12 @@ export class OrderService {
         }
         order.status = nextStatus;
         await order.save();
-
+        const action = statusToActionMap[nextStatus];
+        await this.orderLogService.createLog({
+            action: action,
+            orderId: order._id.toString(),
+            performed_by: role,
+        });
         // Gửi thông báo cho user về trạng thái đơn hàng
         try {
             await this.notificationService.sendOrderNotification(
@@ -592,7 +593,7 @@ export class OrderService {
 
     async getSuggestOrderInfoBySku(sku: string) {
         try {
-            const order = await this.orderModel.findOne({sku:sku}).select('_id orderDetailIds paymentType shippingAddress productPrice totalPrice status sku')
+            const order = await this.orderModel.findOne({ sku: sku }).select('_id orderDetailIds paymentType shippingAddress productPrice totalPrice status sku')
             if (!order) return null
             return order
         } catch (error) {
