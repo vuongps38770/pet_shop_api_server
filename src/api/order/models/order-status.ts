@@ -24,18 +24,34 @@ export const SYSTEM_STATUSES = [
     OrderStatus.RECEIVED,
     OrderStatus.CANCELLED,
     OrderStatus.PAYMENT_SUCCESSFUL,
-    OrderStatus.NEWORDER
+    OrderStatus.NEWORDER,
 ] as const;
 export type OrderStatusSystem = typeof SYSTEM_STATUSES[number];
 
 // map các loại status để ghi action log
-export const statusToActionMap: Record<OrderStatusSystem, OrderAction>= {
+export const statusToActionMap: Record<OrderStatusSystem, OrderAction> = {
     [OrderStatus.CANCELLED]: OrderAction.CANCEL_ORDER,
     [OrderStatus.REFUNDED]: OrderAction.REFUND_ORDER,
     [OrderStatus.RETURNED]: OrderAction.RETURN_ORDER,
     [OrderStatus.RECEIVED]: OrderAction.COMPLETE_ORDER,
     [OrderStatus.PAYMENT_SUCCESSFUL]: OrderAction.CONFIRM_PAYMENT,
-    [OrderStatus.NEWORDER]:OrderAction.CREATE_ORDER,
+    [OrderStatus.NEWORDER]: OrderAction.CREATE_ORDER,
+};
+
+
+export const statusToActionMapOrderStatus: Record<OrderStatus, OrderAction> = {
+    [OrderStatus.CANCELLED]: OrderAction.CANCEL_ORDER,
+    [OrderStatus.REFUNDED]: OrderAction.REFUND_ORDER,
+    [OrderStatus.RETURNED]: OrderAction.RETURN_ORDER,
+    [OrderStatus.RECEIVED]: OrderAction.COMPLETE_ORDER,
+    [OrderStatus.PAYMENT_SUCCESSFUL]: OrderAction.CONFIRM_PAYMENT,
+    [OrderStatus.NEWORDER]: OrderAction.CREATE_ORDER,
+    [OrderStatus.CONFIRMED]: OrderAction.CONFIRM_ORDER,
+    [OrderStatus.SHIPPED]: OrderAction.SHIPPING_ORDER,
+    [OrderStatus.WAIT_FOR_PAYMENT]: OrderAction.WAIT_PAYMENT_ORDER,
+    [OrderStatus.PROCESSING]: OrderAction.PROCESS_ORDER,
+    [OrderStatus.DELIVERED]: OrderAction.DELIVER_ORDER,
+    [OrderStatus.FAILED]: OrderAction.FAIL_DELIVERY_ORDER,
 };
 // export enum OrderAction {
 //   CANCEL_ORDER = "CANCEL_ORDER",

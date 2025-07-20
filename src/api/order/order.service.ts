@@ -7,7 +7,7 @@ import { OrderDetailService } from '../order-detail/order-detail.service';
 import { ProductVariantService } from '../product-variant/product-variant.service';
 import { AppException } from 'src/common/exeptions/app.exeption';
 import { TimeLimit } from 'src/constants/TimeLimit';
-import { OrderStatus, OrderStatusPermissionMap, OrderStatusSystem, OrderStatusTransitionMap, statusToActionMap } from './models/order-status';
+import { OrderStatus, OrderStatusPermissionMap, OrderStatusSystem, OrderStatusTransitionMap, statusToActionMap, statusToActionMapOrderStatus } from './models/order-status';
 import { OrderCheckoutResDto, OrderDetailResDto, OrderListResDto, OrderRebuyItemDto, OrderRespondDto } from './dto/order.respond';
 import { Address } from '../adress/entity/address.entity';
 import { OrderMapper } from './mappers/order.mapper';
@@ -375,7 +375,7 @@ export class OrderService {
         }
         order.status = nextStatus;
         await order.save();
-        const action = statusToActionMap[nextStatus];
+        const action = statusToActionMapOrderStatus[nextStatus];
         await this.orderLogService.createLog({
             action: action,
             orderId: order._id.toString(),
