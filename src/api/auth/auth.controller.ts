@@ -79,6 +79,7 @@ export class AuthController {
         }
     }
 
+    @Public()
     @Post("logout_all")
     @RequireAuth()
     async logoutAll(@Body('userId') userId: string, @Res({ passthrough: true }) res: Response): Promise<void> {
@@ -89,7 +90,7 @@ export class AuthController {
     }
 
 
-
+    @Public()
     @Post('refresh-token')
     async refreshToken(@Body('refreshToken') refreshToken: string, @Body('userAgent') userAgent: string, @Res({ passthrough: true }) res: Response): Promise<PartialStandardResponse<{ accessToken, refreshToken }>> {
         const { accessToken, newRefreshToken } = await this.authService.refreshToken(refreshToken, userAgent);
