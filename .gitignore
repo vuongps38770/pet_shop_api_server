@@ -61,3 +61,8 @@ docker-compose.local.yml
 
 #dùng saas nên ko cần build nx mốt có dùng thì đẩy sau
 docker-compose.prod.yml
+
+# test
+/testing
+
+.env

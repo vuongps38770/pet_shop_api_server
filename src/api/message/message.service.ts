@@ -137,5 +137,10 @@ export class MessageService implements OnModuleInit {
     }
 
 
+    // async markConversationLastRead(conversationId: string, userId: string, messageId: string): Promise<{ success: boolean }> {
+    //     await this.redis.set(`conversation:lastread:${conversationId}:${userId}`, messageId);
+    //     return { success: true };
+    // }
+
 
 }

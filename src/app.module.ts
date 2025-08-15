@@ -45,6 +45,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BroadcastProducer } from './worker/broadcast.producer';
 import { BroadcastProcessor } from './worker/broadcast.proccesor';
 import { AppMailerModule } from './mailer/app-mailer.module';
+import { BlogModule } from './api/blog/blog.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -137,7 +138,7 @@ import { AppMailerModule } from './mailer/app-mailer.module';
     BannerModule,
     MessageModule,
     AppMailerModule,
-
+    BlogModule
 
 
   ],

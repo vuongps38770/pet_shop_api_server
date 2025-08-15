@@ -45,4 +45,6 @@ export class PaginationDto {
     @Type(() => Number)
     @IsPositive()
     maxPrice?: number;
+
+    rating?: number;
 }

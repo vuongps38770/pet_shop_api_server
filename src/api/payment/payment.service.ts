@@ -228,7 +228,7 @@ export class PaymentService {
 
     async handleZaloPayCallback(body: any) {
         const key2 = this.configService.get<string>('ZALOPAY_KEY2');
-
+        log(body)
 
         const { type, mac, data } = body;
 
@@ -244,7 +244,7 @@ export class PaymentService {
         const embedData = JSON.parse(dataObj.embed_data)
         if (Number(type) === 1) {
             console.log("payment ok", embedData);
-            await this.orderService.systemUpdateOrderStatus(embedData.order_id, OrderStatus.PAYMENT_SUCCESSFUL);
+            // await this.orderService.systemUpdateOrderStatus(embedData.order_id, OrderStatus.PAYMENT_SUCCESSFUL);
         } else {
             console.log("payment failed");
 
@@ -458,12 +458,12 @@ export class PaymentService {
 
         if (!payment) return null;
 
-        
+
         const refund = await this.paymentModel.findOne({
             orderId,
             paymentPurpose: PaymentPurpose.REFUND,
             status: PaymentStatus.SUCCESS,
-            transactionId: payment.transactionId, 
+            transactionId: payment.transactionId,
         });
 
         if (refund) {
