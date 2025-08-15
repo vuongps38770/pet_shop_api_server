@@ -6,6 +6,7 @@ import { CategoryRequestCreateDto, CategoryRequestEditDto } from "./dto/category
 import { CategoryType } from "./models/category-.enum";
 import { RedisClient } from "src/redis/redis.provider";
 import Redis from "ioredis";
+import { log } from "console";
 
 @Injectable()
 export class CategoryService implements OnModuleInit {
@@ -23,25 +24,34 @@ export class CategoryService implements OnModuleInit {
         console.log('Indexes synced!');
     }
     async addCategory(data: CategoryRequestCreateDto): Promise<Category> {
+        log(data)
         try {
-            const newCategory = await this.categoryModel.create({
+            const createData: any = {
                 name: data.name,
-                parentId: new Types.ObjectId(data.parentId)
-            },);
+            };
 
-            await this.categoryModel.findByIdAndUpdate(
-                new Types.ObjectId(data.parentId),
-                {
-                    $push: { children: newCategory._id }
-                },
-                { new: true, runValidators: true }
-            )
-            await this.redis.del(this.cacheKey);
-            return newCategory
+            if (data.parentId) {
+                createData.parentId = new Types.ObjectId(data.parentId);
+            }
+
+            const newCategory = await this.categoryModel.create(createData);
+
+            if (data.parentId) {
+                await this.categoryModel.findByIdAndUpdate(
+                    new Types.ObjectId(data.parentId),
+                    {
+                        $push: { children: newCategory._id }
+                    },
+                    { new: true, runValidators: true }
+                );
+            }
+
+            return newCategory;
         } catch (error) {
             throw error;
         }
     }
+
 
     async getCategoryById(id: string): Promise<Category | null> {
         return this.categoryModel.findById(id).exec();
@@ -71,7 +81,7 @@ export class CategoryService implements OnModuleInit {
         // return roots;
         const cached = await this.redis.get(this.cacheKey);
         if (cached) {
-            return JSON.parse(cached);
+            // return JSON.parse(cached);
         }
         const categories = await this.categoryModel.find().lean();
         const tree = this.buildTreeOptimized(categories);

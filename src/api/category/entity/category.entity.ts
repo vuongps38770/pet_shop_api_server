@@ -14,12 +14,6 @@ export class Category {
     name: string;
     @Prop({
         type: Types.ObjectId, ref: 'category',
-        set: (value: any) => {
-            if (typeof value === 'string') {
-                return new Types.ObjectId(value);
-            }
-            return value;
-        }
     })
     parentId: Types.ObjectId
 
