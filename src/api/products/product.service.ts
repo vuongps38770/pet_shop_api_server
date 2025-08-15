@@ -153,6 +153,7 @@ export class ProductService implements OnModuleInit {
                 maxSellingPrice,
                 minPromotionalPrice,
                 minSellingPrice,
+                isActivate:data.isActivate
             });
 
             const createdProduct = await newProduct.save({ session });
