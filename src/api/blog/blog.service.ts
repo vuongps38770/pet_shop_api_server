@@ -35,6 +35,31 @@ export class BlogService {
             },
         };
     }
+    async findPublished(page: number = 1, limit: number = 10) {
+        const skip = (page - 1) * limit;
+
+        const filter = { status: 'published' };
+
+        const [blogs, total] = await Promise.all([
+            this.blogModel
+                .find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            this.blogModel.countDocuments(filter),
+        ]);
+
+        return {
+            blogs,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
 
     async findById(id: string) {
         const blog = await this.blogModel.findById(id).lean();

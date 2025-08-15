@@ -20,6 +20,17 @@ export class BlogController {
     return { data }
   }
 
+  @Get("status/published")
+  async getPublishedBlogs(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ): Promise<PartialStandardResponse<any>> {
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.max(parseInt(limit, 10) || 10, 1);
+    const data = await this.blogService.findPublished(pageNum, limitNum);
+    return { data }
+  }
+
   @Get(':id')
   async getBlogById(@Param('id') id: string): Promise<PartialStandardResponse<any>> {
     const blog = await this.blogService.findById(id);
