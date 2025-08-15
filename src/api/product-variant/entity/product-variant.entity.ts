@@ -35,11 +35,10 @@ export class ProductVariant {
 
 
   @Prop({
-    type: Types.ObjectId, ref: "Product",
-    set: (value: any[]) => {
-      return Array.isArray(value)
-        ? value.map(v => typeof v === 'string' ? new Types.ObjectId(v) : v)
-        : value;
+    type: Types.ObjectId,
+    ref: "Product",
+    set: (value: any) => {
+      return typeof value === 'string' ? new Types.ObjectId(value) : value;
     }
   })
   productId: Types.ObjectId
