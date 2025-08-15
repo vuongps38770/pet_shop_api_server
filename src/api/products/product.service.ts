@@ -175,12 +175,12 @@ export class ProductService implements OnModuleInit {
 
 
     async getProductById(productId: string): Promise<ProductRespondDto> {
-        const cacheKey = `productDetail/${productId}`
-        const cachedData = await this.redis.get(cacheKey)
-        if (cachedData) {
-            console.log(JSON.parse(cachedData));
-            return JSON.parse(cachedData)
-        }
+        // const cacheKey = `productDetail/${productId}`
+        // const cachedData = await this.redis.get(cacheKey)
+        // if (cachedData) {
+        //     console.log(JSON.parse(cachedData));
+        //     return JSON.parse(cachedData)
+        // }
         const product = await this.productModel.findById(productId)
             .populate({
                 path: 'variantIds',
@@ -200,8 +200,8 @@ export class ProductService implements OnModuleInit {
         }
         // console.log(JSON.stringify(product, null, 2));
         const data = ProductMapper.toDto(product);
-        await this.redis.setex(cacheKey, 1800, JSON.stringify(data))
-        log(`cached productDetail/${productId}`)
+        // await this.redis.setex(cacheKey, 1800, JSON.stringify(data))
+        // log(`cached productDetail/${productId}`)
         return data
     }
 
