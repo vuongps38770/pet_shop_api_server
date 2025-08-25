@@ -46,6 +46,8 @@ import { BroadcastProducer } from './worker/broadcast.producer';
 import { BroadcastProcessor } from './worker/broadcast.proccesor';
 import { AppMailerModule } from './mailer/app-mailer.module';
 import { BlogModule } from './api/blog/blog.module';
+import { KafkaModule } from './kafka/kalfka.module';
+import { PostModule } from './api/post/post.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -94,6 +96,7 @@ import { BlogModule } from './api/blog/blog.module';
         }
       }),
     }),
+    KafkaModule,
     BullModule.registerQueue({ name: RedisQueueName.REFUND_QUEUE }),
     BullModule.registerQueue({ name: RedisQueueName.BROADCAST_QUEUE }),
     //module cho api
@@ -138,7 +141,8 @@ import { BlogModule } from './api/blog/blog.module';
     BannerModule,
     MessageModule,
     AppMailerModule,
-    BlogModule
+    BlogModule,
+    PostModule
 
 
   ],
@@ -153,7 +157,7 @@ import { BlogModule } from './api/blog/blog.module';
     PaymentAutoCheckService,
     RefundProcessor,
     BroadcastProducer,
-    BroadcastProcessor
+    BroadcastProcessor,
   ],
 
 })

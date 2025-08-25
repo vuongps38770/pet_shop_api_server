@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
-import { Connection, Model, Types } from "mongoose";
+import mongoose, { Connection, Model, Types } from "mongoose";
 import { Product } from "./entity/product.entity";
 import { CreateProductDto, VariantGroupRequestDto } from "./dto/product-request.dto";
 import { VariantUnit } from "../variant-units/entity/variant-unit";
@@ -153,7 +153,7 @@ export class ProductService implements OnModuleInit {
                 maxSellingPrice,
                 minPromotionalPrice,
                 minSellingPrice,
-                isActivate:data.isActivate
+                isActivate: data.isActivate
             });
 
             const createdProduct = await newProduct.save({ session });
@@ -364,8 +364,20 @@ export class ProductService implements OnModuleInit {
 
         // Cập nhật thông tin cơ bản
         if (dto.name) product.name = dto.name;
-        if (dto.categories) product.categories_ids = dto.categories.map(id => new Types.ObjectId(id));
-        if (dto.suppliers_id) product.suppliers_id = new Types.ObjectId(dto.suppliers_id);
+        if (dto.categories) {
+            log(dto.categories)
+            product.categories_ids = dto.categories
+                .filter(id => mongoose.isValidObjectId(id))
+                .map(id => new Types.ObjectId(id));
+        }
+
+        if (dto.suppliers_id) {
+            log(dto.suppliers_id)
+            if (!mongoose.isValidObjectId(dto.suppliers_id)) {
+                throw new BadRequestException('Invalid supplier ID');
+            }
+            product.suppliers_id = new Types.ObjectId(dto.suppliers_id);
+        }
 
         // Cập nhật ảnh nếu có
         if (imageFiles && imageFiles.length > 0) {
